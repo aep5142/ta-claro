@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import httpx
 from datetime import datetime
 import os
@@ -5,6 +7,15 @@ from dotenv import load_dotenv
 import re
 from supabase import create_client
 load_dotenv()
+
+RUN_DAY_OF_MONTH = 21
+RETRY_INTERVAL_S = 3600
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+)
+log = logging.getLogger("uf-worker")
 
 #Getting variables from .env
 def return_cmf_api_key():
@@ -17,6 +28,10 @@ def return_database_credentials():
     """Returns the Supabase credentials stored in .env"""
 
     return os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+
+
+SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY = return_database_credentials()
+sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 
 def normalize_uf_date(raw_date):
@@ -33,7 +48,7 @@ def normalize_uf_date(raw_date):
 
 #Creating variables to modify API call
 
-def historical_ufs():
+async def historical_ufs(client):
     """Retrives the historical UF value from today to its beginnings of the data
     back in 1990"""
     
@@ -62,7 +77,7 @@ def historical_ufs():
     UF_HISTORICAL_LINK = re.sub(api_key_str, api_key, UF_HISTORICAL_LINK)
 
     #Getting the new clean data
-    response = httpx.get(UF_HISTORICAL_LINK)
+    response = await client.get(UF_HISTORICAL_LINK, timeout=30)
     response.raise_for_status()
     data = response.json()
     data = data["UFs"]
@@ -74,10 +89,37 @@ def historical_ufs():
     return data
 
 
-def populates_uf_values():
+def should_run_today():
+    """Returns True on or after the scheduled day of the month."""
+
+    return datetime.now().day >= RUN_DAY_OF_MONTH
+
+
+def current_month_key():
+    """Returns the current month key in YYYY-MM format."""
+
+    now = datetime.now()
+    return f"{now.year:04d}-{now.month:02d}"
+
+
+def current_month_already_synced():
+    """Returns True when this month's UF sync already succeeded."""
+
+    month_key = current_month_key()
+    response = (
+        sb.table("uf_sync_runs")
+        .select("month_key")
+        .eq("month_key", month_key)
+        .limit(1)
+        .execute()
+    )
+    return bool(response.data)
+
+
+async def populates_uf_values(client):
     """Upserts historical UF values into the existing uf_values table."""
 
-    historical_data = historical_ufs()
+    historical_data = await historical_ufs(client)
     transformed_data = [
         {
             "uf_date": entry["Fecha"],
@@ -86,16 +128,38 @@ def populates_uf_values():
         for entry in historical_data
     ]
 
-    supabase_url, supabase_service_role_key = return_database_credentials()
-    supabase = create_client(supabase_url, supabase_service_role_key)
     response = (
-        supabase.table("uf_values")
+        sb.table("uf_values")
         .upsert(transformed_data, on_conflict="uf_date")
         .execute()
     )
 
+    sb.table("uf_sync_runs").upsert(
+        {"month_key": current_month_key()},
+        on_conflict="month_key",
+    ).execute()
+
     return response
 
 
+async def run_worker():
+    """Runs the monthly UF sync worker with hourly retries after the 21st."""
+
+    async with httpx.AsyncClient() as client:
+        while True:
+            try:
+                if not should_run_today():
+                    log.info("Skipping UF sync: waiting for day %s.", RUN_DAY_OF_MONTH)
+                elif current_month_already_synced():
+                    log.info("Skipping UF sync: current month is already recorded in uf_sync_runs.")
+                else:
+                    await populates_uf_values(client)
+                    log.info("UF sync completed successfully.")
+            except Exception as exc:
+                log.warning("UF sync failed: %s: %s", type(exc).__name__, exc)
+
+            await asyncio.sleep(RETRY_INTERVAL_S)
+
+
 if __name__ == "__main__":
-    populates_uf_values()
+    asyncio.run(run_worker())
