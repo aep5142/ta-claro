@@ -1,4 +1,6 @@
 dotenv
 httpx
+psycopg[binary]
 ruff
 datetime
+supabase
