@@ -66,7 +66,7 @@ class FakeSupabase:
 def config():
     return UfWorkerConfig(
         cmf_api_key="secret",
-        cmf_uf_historical="https://cmf.example",
+        base_endpoint_cmf_uf="https://cmf.example",
         supabase_url="https://supabase.example",
         supabase_service_role_key="service-role",
     )

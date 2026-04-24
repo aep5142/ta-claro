@@ -23,7 +23,7 @@ log = logging.getLogger("uf-worker")
 @dataclass(frozen=True)
 class UfWorkerConfig:
     cmf_api_key: str
-    cmf_uf_historical: str
+    base_endpoint_cmf_uf: str
     supabase_url: str
     supabase_service_role_key: str
     sync_interval_s: int = SYNC_INTERVAL_S
@@ -33,7 +33,7 @@ def load_config() -> UfWorkerConfig:
     load_dotenv()
     return UfWorkerConfig(
         cmf_api_key=os.environ["CMF_API_KEY"],
-        cmf_uf_historical=os.environ["CMF_UF_HISTORICAL"],
+        base_endpoint_cmf_uf=os.environ["BASE_ENDPOINT_CMF_UF"],
         supabase_url=os.environ["SUPABASE_URL"],
         supabase_service_role_key=os.environ["SUPABASE_SERVICE_ROLE_KEY"],
     )
@@ -42,7 +42,7 @@ def load_config() -> UfWorkerConfig:
 async def sync_uf_once(client, sb, config: UfWorkerConfig) -> int:
     source_values = await fetch_historical_ufs(
         client,
-        template=config.cmf_uf_historical,
+        template=config.base_endpoint_cmf_uf,
         api_key=config.cmf_api_key,
     )
 

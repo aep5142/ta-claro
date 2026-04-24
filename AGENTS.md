@@ -14,7 +14,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 
 - Supabase is the active database/backend.
 - The UF worker uses `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
-- The UF worker fetches data from the CMF UF historical API using `CMF_API_KEY` and `CMF_UF_HISTORICAL`.
+- The UF worker fetches data from the CMF UF historical API using `CMF_API_KEY` and `BASE_ENDPOINT_CMF_UF`.
 - The next ETL work also uses CMF endpoints served through `best-sbif-api.azurewebsites.net/Cuadrosv2`.
 
 # Current UF State
