@@ -6,6 +6,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 
 - Python project managed with `uv`.
 - Current UF entrypoint: `uv run data/historical_api_uf.py`
+- Current CMF cards entrypoint: `uv run data/historical_api_cmf_cards.py`
 - The script expects a repo-root `.env`.
 - Tests use `pytest`.
 - When adding Python dependencies, update both `pyproject.toml` and `requirements.txt`.
@@ -16,6 +17,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - The UF worker uses `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
 - The UF worker fetches data from the CMF UF historical API using `CMF_API_KEY` and `BASE_ENDPOINT_CMF_UF`.
 - The next ETL work also uses CMF endpoints served through `best-sbif-api.azurewebsites.net/Cuadrosv2`.
+- The CMF card worker uses `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and optional `BASE_ENDPOINT_CMF_CARDS`.
 
 # Current UF State
 
@@ -53,7 +55,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Railway should run workers as worker services, not request/response web apps.
 - The CMF transaction-count pipeline exists locally as a one-shot worker path.
 - The CMF purchase-volume pipeline exists locally as a one-shot worker path.
-- No shared CMF daily worker loop is implemented yet.
+- The shared CMF daily worker loop exists locally for the two active card datasets.
 
 # Frontend/Auth Direction
 
@@ -169,7 +171,25 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Raw purchase-volume upserts target `public.cmf_card_purchase_volume_raw` using conflict key `dataset_code,source_codigo,period_month`.
 - Curated purchase-volume upserts target `public.cmf_card_purchase_volume_curated` using conflict key `institution_code,period_month`.
 - The Phase 4 one-shot worker skips rows whose `period_month` is not newer than the latest curated purchase-volume month.
-- The shared CMF daily worker loop is not implemented yet.
+
+# Current Shared CMF Worker State
+
+- Phase 5 added the shared CMF monthly worker in `data/workers/cmf_monthly_worker.py`.
+- The shared CMF entrypoint is `data/historical_api_cmf_cards.py`.
+- The shared CMF worker runs daily by default.
+- The active shared CMF datasets are:
+  - `bank_credit_card_transaction_count`
+  - `bank_credit_card_purchase_volume`
+- For each dataset, the shared worker:
+  - records an attempted sync in `public.cmf_dataset_sync_state`
+  - fetches the source endpoint with `FechaFin=run_date`
+  - detects latest source month from parsed source observations
+  - compares it against `public.cmf_dataset_sync_state.latest_source_month`
+  - no-ops when the source month is unchanged
+  - runs the dataset-specific one-shot sync when the source month is newer
+  - records success only after the dataset-specific sync succeeds
+  - records failure without advancing source or curated month state
+- Shared CMF state remains separate from UF state.
 
 # Current CMF Schema Assets
 
@@ -250,6 +270,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Phase 2 moved UF implementation modules into the planned `data/` ETL subfolders.
 - Phase 3 added CMF transaction-count source, transform, loader, model, and one-shot worker modules.
 - Phase 4 added CMF purchase-volume transform, loader, and one-shot worker modules, and extended shared CMF card source/model code.
+- Phase 5 added shared CMF sync-state loader and daily worker orchestration modules.
 - Empty structural directories are tracked with `.gitkeep` placeholders.
 
 # Planned Testing Structure
@@ -328,6 +349,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Introduce the shared CMF monthly worker loop.
 - Move the two datasets onto the shared orchestration path.
 - Add freshness/state tests for unchanged vs newer source month.
+- Status: completed in the Phase 5 shared CMF worker commit.
 
 ## Phase 6: Query Surface And Hardening
 
