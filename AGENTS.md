@@ -52,6 +52,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - The UF worker logic exists locally.
 - Railway should run workers as worker services, not request/response web apps.
 - The CMF transaction-count pipeline exists locally as a one-shot worker path.
+- The CMF purchase-volume pipeline exists locally as a one-shot worker path.
 - No shared CMF daily worker loop is implemented yet.
 
 # Frontend/Auth Direction
@@ -147,7 +148,28 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Raw transaction-count upserts target `public.cmf_card_transaction_count_raw` using conflict key `dataset_code,source_codigo,period_month`.
 - Curated transaction-count upserts target `public.cmf_card_transaction_count_curated` using conflict key `institution_code,period_month`.
 - The Phase 3 one-shot worker skips rows whose `period_month` is not newer than the latest curated transaction-count month.
-- Purchase-volume ingestion and UF enrichment are not implemented yet.
+- Purchase-volume ingestion is implemented separately and should remain joined with transaction count only in later query/view work.
+
+# Current CMF Purchase Volume State
+
+- Phase 4 implemented the bank credit-card purchase-volume pipeline for dataset code `bank_credit_card_purchase_volume`.
+- Purchase-volume source parsing shares `data/sources/cmf_cards.py`.
+- Purchase-volume transform code lives in `data/transforms/cmf_purchase_volume.py`.
+- Purchase-volume loader code lives in `data/loaders/cmf_purchase_volume_loader.py`.
+- Purchase-volume one-shot worker code lives in `data/workers/cmf_purchase_volume_worker.py`.
+- The purchase-volume source tag is `SBIF_TCRED_BANC_COMP_AGIFI_$`.
+- The endpoint builder uses `FechaInicio=20090401`, `FechaFin=YYYYMMDD`, `Tag=SBIF_TCRED_BANC_COMP_AGIFI_$`, and `from=reload`.
+- The parser derives `institution_code` from `source_codigo` by taking the token after `AGIFI`.
+- The parser preserves `source_series_id`, `source_codigo`, and `source_nombre` in raw observations.
+- The parser normalizes supported source periods to first-of-month `date` values.
+- The parser converts CMF numeric values, including string-encoded values, into `nominal_volume_clp` before load.
+- Curated purchase-volume enrichment looks up `public.uf_values` using the 15th day of the same month.
+- Missing required UF values raise an error and should prevent loading curated purchase-volume rows for that sync.
+- `real_volume_uf` is calculated as `nominal_volume_clp / uf_value_used`.
+- Raw purchase-volume upserts target `public.cmf_card_purchase_volume_raw` using conflict key `dataset_code,source_codigo,period_month`.
+- Curated purchase-volume upserts target `public.cmf_card_purchase_volume_curated` using conflict key `institution_code,period_month`.
+- The Phase 4 one-shot worker skips rows whose `period_month` is not newer than the latest curated purchase-volume month.
+- The shared CMF daily worker loop is not implemented yet.
 
 # Current CMF Schema Assets
 
@@ -227,6 +249,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - `data/models/`
 - Phase 2 moved UF implementation modules into the planned `data/` ETL subfolders.
 - Phase 3 added CMF transaction-count source, transform, loader, model, and one-shot worker modules.
+- Phase 4 added CMF purchase-volume transform, loader, and one-shot worker modules, and extended shared CMF card source/model code.
 - Empty structural directories are tracked with `.gitkeep` placeholders.
 
 # Planned Testing Structure
@@ -298,6 +321,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Implement purchase-volume ingestion end-to-end.
 - Add UF enrichment using UF from the 15th of the same month.
 - Add tests for UF lookup and `real_volume_uf` calculation.
+- Status: completed in the Phase 4 purchase-volume pipeline commit.
 
 ## Phase 5: Shared CMF Worker
 

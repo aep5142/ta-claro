@@ -9,8 +9,10 @@ from data.sources.cmf_cards import (
     derive_institution_code,
     normalize_period_month,
     parse_cmf_numeric,
+    parse_purchase_volume_payload,
     parse_transaction_count_payload,
 )
+from tests.fixtures.cmf_purchase_volume_payload import PURCHASE_VOLUME_PAYLOAD
 from tests.fixtures.cmf_transaction_count_payload import TRANSACTION_COUNT_PAYLOAD
 
 
@@ -61,3 +63,19 @@ def test_parse_transaction_count_payload_normalizes_source_observations():
     assert observations[0].period_month == date(2026, 3, 1)
     assert observations[0].transaction_count == Decimal("1234")
     assert observations[0].source_payload == {"Fecha": "2026-03-01", "Valor": "1.234"}
+
+
+def test_parse_purchase_volume_payload_normalizes_nominal_clp_observations():
+    observations = parse_purchase_volume_payload(PURCHASE_VOLUME_PAYLOAD)
+
+    assert len(observations) == 3
+    assert observations[0].source_series_id == "301"
+    assert observations[0].source_codigo == "SBIF_TCRED_BANC_COMP_AGIFI_001_$"
+    assert observations[0].institution_code == "001"
+    assert observations[0].institution_name == "Banco Uno"
+    assert observations[0].period_month == date(2026, 3, 1)
+    assert observations[0].nominal_volume_clp == Decimal("1000000")
+    assert observations[0].source_payload == {
+        "Fecha": "2026-03-01",
+        "Valor": "1.000.000",
+    }
