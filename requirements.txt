@@ -1,6 +1,7 @@
 dotenv
 httpx
 psycopg[binary]
+pytest
 ruff
 datetime
 supabase

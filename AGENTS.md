@@ -7,6 +7,8 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Python project managed with `uv`.
 - Current UF entrypoint: `uv run data/historical_api_uf.py`
 - The script expects a repo-root `.env`.
+- Tests use `pytest`.
+- When adding Python dependencies, update both `pyproject.toml` and `requirements.txt`.
 
 # External Services
 
@@ -17,13 +19,19 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 
 # Current UF State
 
-- `data/historical_api_uf.py` is the current long-running async UF worker.
-- Current local logic is still the old version:
-  - retries every hour
-  - waits until the 21st of the month
-  - checks `public.uf_sync_runs` by `YYYY-MM`
-  - upserts into `public.uf_values`
-- This behavior is planned to change.
+- `data/historical_api_uf.py` remains the UF entrypoint.
+- The UF worker is now refactored into:
+  - `data/workers/uf_worker.py`
+  - `data/sources/uf_source.py`
+  - `data/loaders/uf_loader.py`
+  - `data/models/uf.py`
+- UF now runs on a 5-day loop.
+- UF sync is source-driven:
+  - fetch CMF historical UF source data
+  - compare latest source UF date against latest stored `public.uf_values.uf_date`
+  - no-op when source is unchanged
+  - upsert only UF rows newer than the latest stored date
+- UF remains isolated from CMF dataset state and CMF tables.
 
 # Current Supabase Schema
 
@@ -31,8 +39,13 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - `uf_date date primary key`
   - `value numeric not null`
 - `public.uf_sync_runs`
-  - `month_key text primary key`
+  - `sync_key text primary key`
   - `synced_at timestamptz not null default now()`
+  - `latest_source_uf_date date`
+  - `latest_stored_uf_date date`
+  - `rows_upserted integer not null default 0`
+  - `last_error text`
+- `db/002_uf_source_driven_sync.sql` revises `public.uf_sync_runs` from monthly markers to singleton source-driven state.
 
 # Deployment Status
 
@@ -135,13 +148,8 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 
 - Keep UF as a standalone subsystem separate from CMF dataset state.
 - `uf_values` remains the conversion dependency table used by other datasets.
-- Planned UF worker revision:
-  - run every 5 days instead of the current hourly-after-21st rule
-  - fetch source data
-  - compare latest source UF date vs latest stored `uf_date`
-  - if unchanged, do not upsert
-  - if newer, upsert only new UF rows
-- `uf_sync_runs` should be revised when implementing this new UF behavior so it matches the source-driven logic rather than the current month-marker logic.
+- UF source parsing accepts CMF date strings in `DD-MM-YYYY`, `YYYY-MM-DD`, and `DD/MM/YYYY` formats.
+- UF value parsing accepts Chilean-formatted numeric strings and numeric source values.
 
 # CMF Operational Direction
 
@@ -198,7 +206,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - `data/transforms/`
   - `data/loaders/`
   - `data/models/`
-- The legacy UF worker remains at `data/historical_api_uf.py` until Phase 2.
+- Phase 2 moved UF implementation modules into the planned `data/` ETL subfolders.
 - Empty structural directories are tracked with `.gitkeep` placeholders.
 
 # Planned Testing Structure
@@ -252,6 +260,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Replace the “after the 21st” logic with source-driven freshness logic.
 - Keep UF isolated from CMF state/tables.
 - Add UF tests.
+- Status: completed in the Phase 2 UF worker revision commit.
 
 ## Phase 3: Transaction Count Pipeline
 
