@@ -67,7 +67,7 @@ async def historical_ufs(client):
     now = datetime.now()
     next_year = now.year + 1 if now.month == 12 else now.year
     next_month = 1 if now.month == 12 else now.month + 1
-    now_yr, now_month, now_day = str(next_year), str(next_month), str(now.day)
+    now_yr, now_month = str(next_year), str(next_month)
 
 
     #Rebuilding the starting poi
