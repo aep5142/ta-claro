@@ -1,0 +1,63 @@
+from datetime import date
+from decimal import Decimal
+
+import pytest
+
+from data.models.cmf_cards import BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET
+from data.sources.cmf_cards import (
+    build_cmf_cuadros_url,
+    derive_institution_code,
+    normalize_period_month,
+    parse_cmf_numeric,
+    parse_transaction_count_payload,
+)
+from tests.fixtures.cmf_transaction_count_payload import TRANSACTION_COUNT_PAYLOAD
+
+
+def test_build_cmf_cuadros_url_for_transaction_count_endpoint():
+    url = build_cmf_cuadros_url(
+        endpoint_base="https://best-sbif-api.azurewebsites.net/Cuadrosv2",
+        tag="SBIF_TCRED_BANC_COMP_AGIFI_NUM",
+        fecha_fin=date(2026, 4, 24),
+    )
+
+    assert url == (
+        "https://best-sbif-api.azurewebsites.net/Cuadrosv2?"
+        "FechaFin=20260424&FechaInicio=20090401&"
+        "Tag=SBIF_TCRED_BANC_COMP_AGIFI_NUM&from=reload"
+    )
+
+
+def test_derive_institution_code_from_source_codigo():
+    assert derive_institution_code("SBIF_TCRED_BANC_COMP_AGIFI_049_NUM") == "049"
+
+
+def test_derive_institution_code_rejects_missing_agifi_token():
+    with pytest.raises(ValueError, match="Cannot derive institution_code"):
+        derive_institution_code("SBIF_TCRED_BANC_COMP_049_NUM")
+
+
+def test_parse_cmf_numeric_accepts_string_values():
+    assert parse_cmf_numeric("1.234.567") == Decimal("1234567")
+    assert parse_cmf_numeric("1234,50") == Decimal("1234.50")
+
+
+def test_normalize_period_month_accepts_common_source_formats():
+    assert normalize_period_month("2026-04-24") == date(2026, 4, 1)
+    assert normalize_period_month("24-04-2026") == date(2026, 4, 1)
+    assert normalize_period_month("202604") == date(2026, 4, 1)
+    assert normalize_period_month("2026-04") == date(2026, 4, 1)
+
+
+def test_parse_transaction_count_payload_normalizes_source_observations():
+    observations = parse_transaction_count_payload(TRANSACTION_COUNT_PAYLOAD)
+
+    assert len(observations) == 3
+    assert observations[0].dataset_code == BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET
+    assert observations[0].source_series_id == "101"
+    assert observations[0].source_codigo == "SBIF_TCRED_BANC_COMP_AGIFI_001_NUM"
+    assert observations[0].institution_code == "001"
+    assert observations[0].institution_name == "Banco Uno"
+    assert observations[0].period_month == date(2026, 3, 1)
+    assert observations[0].transaction_count == Decimal("1234")
+    assert observations[0].source_payload == {"Fecha": "2026-03-01", "Valor": "1.234"}

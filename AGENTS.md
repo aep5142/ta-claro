@@ -51,7 +51,8 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 
 - The UF worker logic exists locally.
 - Railway should run workers as worker services, not request/response web apps.
-- No CMF card ETL worker is implemented yet.
+- The CMF transaction-count pipeline exists locally as a one-shot worker path.
+- No shared CMF daily worker loop is implemented yet.
 
 # Frontend/Auth Direction
 
@@ -130,6 +131,24 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Derived demo metrics should be computed at query time, not persisted in ETL tables.
 - CMF endpoint numeric observations may arrive as strings; parser/normalization phases must explicitly convert them before loading numeric database columns.
 
+# Current CMF Transaction Count State
+
+- Phase 3 implemented the bank credit-card transaction-count pipeline for dataset code `bank_credit_card_transaction_count`.
+- Transaction-count source code lives in `data/sources/cmf_cards.py`.
+- Transaction-count transform code lives in `data/transforms/cmf_transaction_count.py`.
+- Transaction-count loader code lives in `data/loaders/cmf_transaction_count_loader.py`.
+- Transaction-count one-shot worker code lives in `data/workers/cmf_transaction_count_worker.py`.
+- The transaction-count source tag is `SBIF_TCRED_BANC_COMP_AGIFI_NUM`.
+- The endpoint builder uses `FechaInicio=20090401`, `FechaFin=YYYYMMDD`, `Tag=SBIF_TCRED_BANC_COMP_AGIFI_NUM`, and `from=reload`.
+- The parser derives `institution_code` from `source_codigo` by taking the token after `AGIFI`.
+- The parser preserves `source_series_id`, `source_codigo`, and `source_nombre` in raw observations.
+- The parser normalizes supported source periods to first-of-month `date` values.
+- The parser converts CMF numeric values, including string-encoded values, into numeric transaction counts before load.
+- Raw transaction-count upserts target `public.cmf_card_transaction_count_raw` using conflict key `dataset_code,source_codigo,period_month`.
+- Curated transaction-count upserts target `public.cmf_card_transaction_count_curated` using conflict key `institution_code,period_month`.
+- The Phase 3 one-shot worker skips rows whose `period_month` is not newer than the latest curated transaction-count month.
+- Purchase-volume ingestion and UF enrichment are not implemented yet.
+
 # Current CMF Schema Assets
 
 - Phase 1 added initial CMF database SQL in `db/001_cmf_foundation.sql`.
@@ -207,6 +226,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - `data/loaders/`
   - `data/models/`
 - Phase 2 moved UF implementation modules into the planned `data/` ETL subfolders.
+- Phase 3 added CMF transaction-count source, transform, loader, model, and one-shot worker modules.
 - Empty structural directories are tracked with `.gitkeep` placeholders.
 
 # Planned Testing Structure
@@ -271,6 +291,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - raw upsert
   - curated upsert
 - Add tests for parser, normalization, and idempotent load behavior.
+- Status: completed in the Phase 3 transaction-count pipeline commit.
 
 ## Phase 4: Purchase Volume Pipeline
 
