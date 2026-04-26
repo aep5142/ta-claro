@@ -3,7 +3,7 @@ from datetime import date
 
 import pytest
 
-from data.workers.cmf_monthly_worker import (
+from data.workers.bank_credit_card_operations_worker import (
     CmfMonthlyDataset,
     CmfMonthlyWorkerConfig,
     active_monthly_datasets,

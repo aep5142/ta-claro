@@ -15,13 +15,13 @@ from data.loaders.cmf_sync_state_loader import (
     record_cmf_sync_failure,
     record_cmf_sync_success,
 )
-from data.models.cmf_cards import (
+from data.models.bank_credit_card_operations import (
     BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
     BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET,
     CmfPurchaseVolumeRawObservation,
     CmfTransactionCountRawObservation,
 )
-from data.sources.cmf_cards import (
+from data.sources.bank_credit_card_operations import (
     fetch_purchase_volume_observations,
     fetch_transaction_count_observations,
 )

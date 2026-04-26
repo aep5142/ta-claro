@@ -6,7 +6,7 @@ from data.loaders.cmf_transaction_count_loader import (
     upsert_transaction_count_curated,
     upsert_transaction_count_raw,
 )
-from data.models.cmf_cards import (
+from data.models.bank_credit_card_operations import (
     BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET,
     CmfTransactionCountCuratedObservation,
     CmfTransactionCountRawObservation,

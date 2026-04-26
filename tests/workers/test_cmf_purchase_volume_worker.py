@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 
 import data.workers.cmf_purchase_volume_worker as worker
-from data.models.cmf_cards import (
+from data.models.bank_credit_card_operations import (
     BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
     CmfPurchaseVolumeRawObservation,
 )

@@ -7,7 +7,7 @@ from data.loaders.cmf_purchase_volume_loader import (
     upsert_purchase_volume_curated,
     upsert_purchase_volume_raw,
 )
-from data.sources.cmf_cards import fetch_purchase_volume_observations
+from data.sources.bank_credit_card_operations import fetch_purchase_volume_observations
 from data.transforms.cmf_purchase_volume import to_curated_purchase_volume
 
 

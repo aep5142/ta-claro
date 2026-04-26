@@ -9,7 +9,7 @@ from data.loaders.cmf_purchase_volume_loader import (
     upsert_purchase_volume_curated,
     upsert_purchase_volume_raw,
 )
-from data.models.cmf_cards import (
+from data.models.bank_credit_card_operations import (
     BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
     CmfPurchaseVolumeCuratedObservation,
     CmfPurchaseVolumeRawObservation,

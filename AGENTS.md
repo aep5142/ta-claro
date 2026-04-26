@@ -6,7 +6,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 
 - Python project managed with `uv`.
 - Current UF entrypoint: `uv run data/historical_api_uf.py`
-- Current CMF cards entrypoint: `uv run data/historical_api_cmf_cards.py`
+- Current CMF cards entrypoint: `uv run data/api_bank_credit_card_operations.py`
 - The script expects a repo-root `.env`.
 - Tests use `pytest`.
 - When adding Python dependencies, update both `pyproject.toml` and `requirements.txt`.
@@ -137,7 +137,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 # Current CMF Transaction Count State
 
 - Phase 3 implemented the bank credit-card transaction-count pipeline for dataset code `bank_credit_card_transaction_count`.
-- Transaction-count source code lives in `data/sources/cmf_cards.py`.
+- Transaction-count source code lives in `data/sources/bank_credit_card_operations.py`.
 - Transaction-count transform code lives in `data/transforms/cmf_transaction_count.py`.
 - Transaction-count loader code lives in `data/loaders/cmf_transaction_count_loader.py`.
 - Transaction-count one-shot worker code lives in `data/workers/cmf_transaction_count_worker.py`.
@@ -155,7 +155,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 # Current CMF Purchase Volume State
 
 - Phase 4 implemented the bank credit-card purchase-volume pipeline for dataset code `bank_credit_card_purchase_volume`.
-- Purchase-volume source parsing shares `data/sources/cmf_cards.py`.
+- Purchase-volume source parsing shares `data/sources/bank_credit_card_operations.py`.
 - Purchase-volume transform code lives in `data/transforms/cmf_purchase_volume.py`.
 - Purchase-volume loader code lives in `data/loaders/cmf_purchase_volume_loader.py`.
 - Purchase-volume one-shot worker code lives in `data/workers/cmf_purchase_volume_worker.py`.
@@ -174,8 +174,8 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 
 # Current Shared CMF Worker State
 
-- Phase 5 added the shared CMF monthly worker in `data/workers/cmf_monthly_worker.py`.
-- The shared CMF entrypoint is `data/historical_api_cmf_cards.py`.
+- Phase 5 added the shared CMF monthly worker in `data/workers/bank_credit_card_operations_worker.py`.
+- The shared CMF entrypoint is `data/api_bank_credit_card_operations.py`.
 - The shared CMF worker runs daily by default.
 - The active shared CMF datasets are:
   - `bank_credit_card_transaction_count`

@@ -3,8 +3,8 @@ from decimal import Decimal
 
 import pytest
 
-from data.models.cmf_cards import BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET
-from data.sources.cmf_cards import (
+from data.models.bank_credit_card_operations import BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET
+from data.sources.bank_credit_card_operations import (
     build_cmf_cuadros_url,
     derive_institution_code,
     normalize_period_month,

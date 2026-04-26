@@ -1,6 +1,6 @@
 from datetime import date
 
-from data.models.cmf_cards import (
+from data.models.bank_credit_card_operations import (
     CmfTransactionCountCuratedObservation,
     CmfTransactionCountRawObservation,
 )

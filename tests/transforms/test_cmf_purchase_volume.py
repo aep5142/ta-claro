@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from data.models.cmf_cards import (
+from data.models.bank_credit_card_operations import (
     BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
     CmfPurchaseVolumeRawObservation,
 )

@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 
 import data.workers.cmf_transaction_count_worker as worker
-from data.models.cmf_cards import (
+from data.models.bank_credit_card_operations import (
     BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET,
     CmfTransactionCountRawObservation,
 )
