@@ -89,6 +89,20 @@ def _dataset(dataset_code, latest_source_month, rows_synced=1):
     )
 
 
+def _failing_dataset(dataset_code, error_message):
+    async def fetch_latest_source_month(_client, _endpoint_base, _run_date):
+        raise RuntimeError(error_message)
+
+    async def sync_dataset(_client, _sb, _endpoint_base, _run_date):
+        return 0
+
+    return CmfMonthlyDataset(
+        dataset_code=dataset_code,
+        fetch_latest_source_month=fetch_latest_source_month,
+        sync_dataset=sync_dataset,
+    )
+
+
 def test_latest_observation_month_returns_max_month():
     assert latest_observation_month(
         [
@@ -165,6 +179,31 @@ def test_sync_cmf_monthly_dataset_once_records_failure_without_advancing_state()
     assert sb.upserts[-1]["payload"]["last_error"] == "RuntimeError: load failed"
     assert "latest_source_month" not in sb.upserts[-1]["payload"]
     assert "latest_curated_month" not in sb.upserts[-1]["payload"]
+
+
+def test_sync_all_cmf_monthly_datasets_once_continues_after_one_dataset_failure():
+    datasets = [
+        _failing_dataset("transactions", "source unavailable"),
+        _dataset("volume", date(2026, 4, 1), rows_synced=3),
+    ]
+    sb = FakeSupabase(states={"volume": [{"latest_source_month": "2026-03-01"}]})
+
+    results = asyncio.run(
+        sync_all_cmf_monthly_datasets_once(
+            None,
+            sb,
+            config=CmfMonthlyWorkerConfig(
+                supabase_url="https://supabase.example",
+                supabase_service_role_key="service-role",
+                endpoint_base="https://cmf.example",
+            ),
+            run_date=date(2026, 4, 24),
+            datasets=datasets,
+        )
+    )
+
+    assert results == {"transactions": 0, "volume": 3}
+    assert sb.upserts[1]["payload"]["last_error"] == "RuntimeError: source unavailable"
 
 
 def test_sync_all_cmf_monthly_datasets_once_runs_both_datasets():

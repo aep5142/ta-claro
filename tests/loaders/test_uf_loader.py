@@ -1,6 +1,10 @@
 from datetime import date
 
-from data.loaders.uf_loader import latest_stored_uf_date, new_uf_values
+from data.loaders.uf_loader import (
+    latest_stored_uf_date,
+    new_uf_values,
+    record_uf_sync_failure,
+)
 from data.models.uf import UfValue
 
 
@@ -29,10 +33,38 @@ class FakeQuery:
 class FakeSupabase:
     def __init__(self, response_data):
         self.response_data = response_data
+        self.upserts = []
 
     def table(self, table_name):
         assert table_name == "uf_values"
         return FakeQuery(self.response_data)
+
+
+class FakeSyncTable:
+    def __init__(self, db):
+        self.db = db
+        self._payload = None
+
+    def upsert(self, payload, **kwargs):
+        self._payload = payload
+        self.db["upserts"].append({"payload": payload, "kwargs": kwargs})
+        return self
+
+    def execute(self):
+        return None
+
+
+class FakeSyncSupabase:
+    def __init__(self):
+        self.db = {"upserts": []}
+
+    def table(self, table_name):
+        assert table_name == "uf_sync_runs"
+        return FakeSyncTable(self.db)
+
+    @property
+    def upserts(self):
+        return self.db["upserts"]
 
 
 def test_latest_stored_uf_date_returns_none_when_table_is_empty():
@@ -64,3 +96,13 @@ def test_new_uf_values_returns_all_rows_when_no_stored_date_exists():
     ]
 
     assert new_uf_values(source_values, None) == source_values
+
+
+def test_record_uf_sync_failure_writes_last_error_state():
+    sb = FakeSyncSupabase()
+
+    record_uf_sync_failure(sb, RuntimeError("source failed"))
+
+    assert sb.upserts[0]["payload"]["sync_key"] == "uf_values"
+    assert sb.upserts[0]["payload"]["last_error"] == "RuntimeError: source failed"
+    assert "synced_at" in sb.upserts[0]["payload"]

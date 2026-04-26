@@ -62,3 +62,18 @@ def record_uf_sync_success(
         )
         .execute()
     )
+
+
+def record_uf_sync_failure(sb, error: Exception):
+    return (
+        sb.table("uf_sync_runs")
+        .upsert(
+            {
+                "sync_key": UF_SYNC_KEY,
+                "last_error": f"{type(error).__name__}: {error}",
+                "synced_at": datetime.now(timezone.utc).isoformat(),
+            },
+            on_conflict="sync_key",
+        )
+        .execute()
+    )

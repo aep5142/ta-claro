@@ -108,3 +108,17 @@ def test_sync_uf_once_upserts_only_new_rows_and_updates_state(monkeypatch, confi
     assert sb.upserts[1]["payload"]["latest_stored_uf_date"] == "2026-04-16"
     assert sb.upserts[1]["payload"]["rows_upserted"] == 1
     assert "synced_at" in sb.upserts[1]["payload"]
+
+
+def test_sync_uf_once_records_failure_when_source_fetch_fails(monkeypatch, config):
+    async def fake_fetch_historical_ufs(*_args, **_kwargs):
+        raise RuntimeError("source unavailable")
+
+    monkeypatch.setattr(uf_worker, "fetch_historical_ufs", fake_fetch_historical_ufs)
+    sb = FakeSupabase()
+
+    with pytest.raises(RuntimeError, match="source unavailable"):
+        asyncio.run(sync_uf_once(None, sb, config))
+
+    assert [upsert["table"] for upsert in sb.upserts] == ["uf_sync_runs"]
+    assert sb.upserts[0]["payload"]["last_error"] == "RuntimeError: source unavailable"

@@ -356,3 +356,6 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Add joined DB view(s) for downstream reads.
 - Add operational logging/error-hardening.
 - Finalize test coverage for the v1 path.
+- `db/003_cmf_demo_views.sql` defines `public.cmf_card_monthly_metrics`, `public.cmf_latest_uf`, and `public.cmf_card_monthly_demo_metrics` for demo reads.
+- UF sync failures now persist `last_error` in `public.uf_sync_runs`.
+- CMF monthly sync failures now persist `last_error` in `public.cmf_dataset_sync_state`, and the shared worker continues other datasets when one fails.

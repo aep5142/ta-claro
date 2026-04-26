@@ -154,22 +154,22 @@ async def sync_cmf_monthly_dataset_once(
     run_date: date,
 ) -> int:
     record_cmf_sync_attempt(sb, dataset.dataset_code)
-    latest_source_month = await dataset.fetch_latest_source_month(
-        client,
-        endpoint_base,
-        run_date,
-    )
-
-    if latest_source_month is None:
-        log.info("Skipping %s: source returned no rows.", dataset.dataset_code)
-        return 0
-
-    latest_state_month = get_latest_state_source_month(sb, dataset.dataset_code)
-    if latest_state_month is not None and latest_source_month <= latest_state_month:
-        log.info("Skipping %s: latest source month is unchanged.", dataset.dataset_code)
-        return 0
-
     try:
+        latest_source_month = await dataset.fetch_latest_source_month(
+            client,
+            endpoint_base,
+            run_date,
+        )
+
+        if latest_source_month is None:
+            log.info("Skipping %s: source returned no rows.", dataset.dataset_code)
+            return 0
+
+        latest_state_month = get_latest_state_source_month(sb, dataset.dataset_code)
+        if latest_state_month is not None and latest_source_month <= latest_state_month:
+            log.info("Skipping %s: latest source month is unchanged.", dataset.dataset_code)
+            return 0
+
         rows_synced = await dataset.sync_dataset(client, sb, endpoint_base, run_date)
     except Exception as exc:
         record_cmf_sync_failure(sb, dataset_code=dataset.dataset_code, error=exc)
@@ -195,13 +195,22 @@ async def sync_all_cmf_monthly_datasets_once(
     results: dict[str, int] = {}
 
     for dataset in datasets or active_monthly_datasets():
-        results[dataset.dataset_code] = await sync_cmf_monthly_dataset_once(
-            client,
-            sb,
-            dataset=dataset,
-            endpoint_base=config.endpoint_base,
-            run_date=run_date,
-        )
+        try:
+            results[dataset.dataset_code] = await sync_cmf_monthly_dataset_once(
+                client,
+                sb,
+                dataset=dataset,
+                endpoint_base=config.endpoint_base,
+                run_date=run_date,
+            )
+        except Exception as exc:
+            log.warning(
+                "CMF monthly dataset %s failed: %s: %s",
+                dataset.dataset_code,
+                type(exc).__name__,
+                exc,
+            )
+            results[dataset.dataset_code] = 0
 
     return results
 
