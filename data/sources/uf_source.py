@@ -40,8 +40,9 @@ def build_historical_uf_url(template: str, api_key: str, today: date | None = No
     """Build the CMF historical UF URL from the existing environment template."""
 
     current_date = today or date.today()
-    target_year = current_date.year + 1 if current_date.month == 12 else current_date.year
-    target_month = 1 if current_date.month == 12 else current_date.month + 1
+    target_month_index = current_date.month + 2
+    target_year = current_date.year + ((target_month_index - 1) // 12)
+    target_month = ((target_month_index - 1) % 12) + 1
 
     return (
         template.replace("<format>", "json")

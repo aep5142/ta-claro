@@ -29,14 +29,24 @@ def test_parse_uf_rows_rejects_unknown_date_format():
         parse_uf_rows(payload)
 
 
-def test_build_historical_uf_url_uses_next_month():
+def test_build_historical_uf_url_uses_two_month_lookahead():
     url = build_historical_uf_url(
         "https://cmf.example/<year>/<month>/<format>?apikey=<api_key>",
         api_key="secret",
         today=date(2026, 4, 24),
     )
 
-    assert url == "https://cmf.example/2026/5/json?apikey=secret"
+    assert url == "https://cmf.example/2026/6/json?apikey=secret"
+
+
+def test_build_historical_uf_url_rolls_november_to_next_year():
+    url = build_historical_uf_url(
+        "https://cmf.example/<year>/<month>/<format>?apikey=<api_key>",
+        api_key="secret",
+        today=date(2026, 11, 24),
+    )
+
+    assert url == "https://cmf.example/2027/1/json?apikey=secret"
 
 
 def test_build_historical_uf_url_rolls_december_to_next_year():
@@ -46,4 +56,4 @@ def test_build_historical_uf_url_rolls_december_to_next_year():
         today=date(2026, 12, 24),
     )
 
-    assert url == "https://cmf.example/2027/1/json?apikey=secret"
+    assert url == "https://cmf.example/2027/2/json?apikey=secret"

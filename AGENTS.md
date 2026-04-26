@@ -30,6 +30,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - UF now runs on a 5-day loop.
 - UF sync is source-driven:
   - fetch CMF historical UF source data
+  - request the CMF UF endpoint two months ahead of the current month so the latest published UF date is exposed
   - compare latest source UF date against latest stored `public.uf_values.uf_date`
   - no-op when source is unchanged
   - upsert only UF rows newer than the latest stored date
