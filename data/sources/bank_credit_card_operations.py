@@ -63,11 +63,14 @@ def parse_cmf_numeric(raw_value: str | int | float | Decimal) -> Decimal:
         raise ValueError(f"Unsupported CMF numeric value: {raw_value}") from exc
 
 
-def normalize_period_month(raw_period: str | date) -> date:
+def normalize_period_month(raw_period: str | int | date) -> date:
     if isinstance(raw_period, date):
         return raw_period.replace(day=1)
 
-    for date_format in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
+    if isinstance(raw_period, int):
+        raw_period = str(raw_period)
+
+    for date_format in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y%m%d"):
         try:
             return datetime.strptime(raw_period, date_format).date().replace(day=1)
         except ValueError:
@@ -92,7 +95,14 @@ def parse_transaction_count_payload(
     for series in _get_series(payload):
         source_codigo = _first_present(series, "Codigo", "codigo", "source_codigo")
         institution_code = derive_institution_code(source_codigo)
-        source_nombre = _first_present(series, "Nombre", "nombre", "source_nombre")
+        source_nombre = _first_present(
+            series,
+            "descripcionCorta",
+            "DescripcionCorta",
+            "Nombre",
+            "nombre",
+            "source_nombre",
+        )
         source_series_id = str(_first_present(series, "id", "Id", "source_series_id"))
 
         for point in _get_observations(series):
@@ -133,7 +143,14 @@ def parse_purchase_volume_payload(
     for series in _get_series(payload):
         source_codigo = _first_present(series, "Codigo", "codigo", "source_codigo")
         institution_code = derive_institution_code(source_codigo)
-        source_nombre = _first_present(series, "Nombre", "nombre", "source_nombre")
+        source_nombre = _first_present(
+            series,
+            "descripcionCorta",
+            "DescripcionCorta",
+            "Nombre",
+            "nombre",
+            "source_nombre",
+        )
         source_series_id = str(_first_present(series, "id", "Id", "source_series_id"))
 
         for point in _get_observations(series):
@@ -237,7 +254,16 @@ def _get_series(payload: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _get_observations(series: dict[str, Any]) -> list[dict[str, Any]]:
-    for key in ("data", "datos", "Datos", "observations", "valores", "Valores"):
+    for key in (
+        "observaciones",
+        "Observaciones",
+        "data",
+        "datos",
+        "Datos",
+        "observations",
+        "valores",
+        "Valores",
+    ):
         if key in series and isinstance(series[key], list):
             return series[key]
 
