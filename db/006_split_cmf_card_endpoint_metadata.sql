@@ -37,7 +37,7 @@ select
     source_rows.source_endpoint_base,
     source_rows.refresh_frequency,
     bank_credit_card_ops_compras_transaction_count.source_unit,
-    source_rows.start_date,
+    date '2009-04-01',
     source_rows.is_active,
     source_rows.created_at,
     source_rows.updated_at
