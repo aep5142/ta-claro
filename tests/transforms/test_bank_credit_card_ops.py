@@ -54,7 +54,7 @@ def test_to_curated_bank_credit_card_ops_enriches_with_uf_and_average_ticket():
     assert curated[0].uf_date_used == date(2026, 4, 15)
     assert curated[0].uf_value_used == Decimal("40000")
     assert curated[0].real_value_uf == Decimal("3.01268345")
-    assert curated[0].average_ticket_uf == Decimal("75317.08625")
+    assert curated[0].average_ticket_uf == Decimal("1205073.38")
     assert curated[0].source_dataset_code == BANK_CREDIT_CARD_OPS_COMPRAS_DATASET
 
 

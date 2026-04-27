@@ -21,9 +21,10 @@ def test_cmf_ops_views_sql_defines_combined_public_view():
     sql = Path("db/003_bank_credit_card_ops_views.sql").read_text()
 
     assert "create or replace view public.bank_credit_card_ops_metrics" in sql
-    assert "nominal_volume_thousands_millions_clp * 1000 as nominal_volume_millions_clp" in sql
-    assert "average_ticket_uf * latest_uf.latest_uf_value as average_ticket_clp_today" in sql
-    assert "average_ticket_clp_today" in sql
+    assert "nominal_volume_millions_clp" not in sql
+    assert "average_ticket_clp_today" not in sql
+    assert "nominal_volume_thousands_millions_clp" in sql
+    assert "average_ticket_uf" in sql
 
 
 def test_cmf_ops_cleanup_sql_drops_obsolete_purchase_views():

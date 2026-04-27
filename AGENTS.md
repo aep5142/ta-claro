@@ -157,7 +157,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Raw monthly rows store `transaction_count` and `nominal_volume_millions_clp`.
 - Curated monthly rows store `nominal_volume_thousands_millions_clp`, `uf_date_used`, `uf_value_used`, `real_value_uf`, and `average_ticket_uf`.
 - `real_value_uf` and `average_ticket_uf` are stored in UF units according to the current ops transform contract.
-- The public view derives `nominal_volume_millions_clp` and `average_ticket_clp_today` at query time and does not expose `latest_uf_value`.
+- The public view exposes only the canonical stored fields and does not derive CLP convenience columns.
 - The worker runs daily by default, loops over active registry rows, no-ops on unchanged source month, and records success/failure per operation without blocking the other operations.
 - Shared ops state remains separate from UF state.
 
@@ -171,7 +171,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - `public.bank_credit_card_ops_curated`
 - The public read surface lives in `db/003_bank_credit_card_ops_views.sql`.
 - `public.bank_credit_card_ops_curated` uses `dataset_code + institution_code + period_month` as the primary analytical grain.
-- The public card read surface is `public.bank_credit_card_ops_metrics`, which exposes `average_ticket_uf` from the stored curated table and computes `average_ticket_clp_today` at query time.
+- The public card read surface is `public.bank_credit_card_ops_metrics`, which exposes the canonical stored curated fields only.
 
 # UF Operational Direction
 
@@ -192,7 +192,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - sync only when a newer month appears
 - Failed runs should not advance sync state.
 - Keep ops sync-state separate from UF sync-state.
-- `average_ticket_uf` is stored in `public.bank_credit_card_ops_curated`; `average_ticket_clp_today` is derived at query time from the latest UF.
+- `average_ticket_uf` is stored in `public.bank_credit_card_ops_curated`.
 
 # Demo Requirements
 

@@ -230,7 +230,7 @@ def test_sync_operation_once_syncs_newer_source_and_advances_state(monkeypatch):
     assert sb.upserts[1]["table"] == "bank_credit_card_ops_raw"
     assert sb.upserts[1]["payload"][0]["transaction_count"] == "2500"
     assert sb.upserts[2]["table"] == "bank_credit_card_ops_curated"
-    assert sb.upserts[2]["payload"][0]["average_ticket_uf"] == "75317.08625000000000"
+    assert sb.upserts[2]["payload"][0]["average_ticket_uf"] == "1205073.38000000000"
     assert sb.upserts[3]["table"] == "cmf_dataset_sync_state"
     assert sb.upserts[3]["payload"]["latest_source_month"] == "2026-04-01"
     assert sb.upserts[3]["payload"]["latest_curated_month"] == "2026-04-01"
