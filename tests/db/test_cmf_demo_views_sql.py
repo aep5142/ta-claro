@@ -22,3 +22,21 @@ def test_cmf_ops_views_sql_defines_combined_public_view():
     assert "nominal_volume_thousands_millions_clp * 1000 as nominal_volume_millions_clp" in sql
     assert "average_ticket_uf * latest_uf.latest_uf_value as average_ticket_clp_today" in sql
     assert "latest_uf_value" not in sql.split("create or replace view public.bank_credit_card_ops_metrics", 1)[0]
+
+
+def test_cmf_ops_cleanup_sql_drops_obsolete_purchase_views():
+    sql = Path("db/004_drop_obsolete_credit_card_views.sql").read_text()
+
+    assert "drop view if exists public.bank_credit_card_purchase;" in sql
+    assert "drop view if exists public.bank_credit_card_purchases;" in sql
+    assert "drop view if exists public.bank_credit_card_purchases_metrics;" in sql
+    assert "drop table if exists public.bank_credit_card_purchase_metrics;" in sql
+
+
+def test_cmf_ops_cleanup_sql_drops_obsolete_split_tables():
+    sql = Path("db/005_drop_obsolete_credit_card_tables.sql").read_text()
+
+    assert "drop table if exists public.bank_credit_card_transaction_count_raw;" in sql
+    assert "drop table if exists public.bank_credit_card_transaction_count_curated;" in sql
+    assert "drop table if exists public.bank_credit_card_purchase_volume_raw;" in sql
+    assert "drop table if exists public.bank_credit_card_purchase_volume_curated;" in sql

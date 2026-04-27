@@ -234,7 +234,7 @@ This is the next backend cleanup pass after the current working ETL state.
 
 ### Key Changes
 
-- Rename `cmf_card_monthly_metrics` to `bank_credit_card_ops_metrics`.
+- Rename the public metrics view to `bank_credit_card_ops_metrics`.
 - Roll back the purchase-only split and store all credit-card operations in the unified `bank_credit_card_ops_*` tables.
 - Keep `average_ticket_uf` stored and compute `average_ticket_clp_today` at query time.
 - Simplify the metrics views so the read surface is not duplicated.
