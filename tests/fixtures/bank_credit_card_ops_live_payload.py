@@ -1,4 +1,4 @@
-LIVE_PURCHASE_VOLUME_PAYLOAD = {
+LIVE_COMPRAS_NOMINAL_VOLUME_PAYLOAD = {
     "id": 6055,
     "tag": "SBIF_TCRED_BANC_COMP_AGIFI_$",
     "nombre": "Compras efectuadas con  tarjetas de crédito, por emisor",
@@ -19,7 +19,7 @@ LIVE_PURCHASE_VOLUME_PAYLOAD = {
 }
 
 
-LIVE_TRANSACTION_COUNT_PAYLOAD = {
+LIVE_COMPRAS_TRANSACTION_COUNT_PAYLOAD = {
     "id": 6040,
     "tag": "SBIF_TCRED_BANC_COMP_AGIFI_NUM",
     "nombre": "Compras efectuadas con  tarjetas de crédito, por emisor",

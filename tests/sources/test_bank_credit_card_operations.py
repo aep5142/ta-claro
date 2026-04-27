@@ -17,6 +17,10 @@ from data.sources.bank_credit_card_operations import (
     parse_nominal_volume_payload,
     parse_transaction_count_payload,
 )
+from tests.fixtures.bank_credit_card_ops_live_payload import (
+    LIVE_COMPRAS_NOMINAL_VOLUME_PAYLOAD,
+    LIVE_COMPRAS_TRANSACTION_COUNT_PAYLOAD,
+)
 
 
 def _payload(*, series_id: int, codigo: str, nombre: str, values: list[tuple[str, str]]):
@@ -129,6 +133,40 @@ def test_parse_nominal_volume_payload_normalizes_source_observations():
     assert observations[0].period_month == date(2026, 3, 1)
     assert observations[0].value == Decimal("1000000")
     assert observations[0].source_payload == {"Fecha": "2026-03-01", "Valor": "1.000.000"}
+
+
+def test_parse_transaction_count_payload_accepts_live_payload_shape():
+    observations = parse_transaction_count_payload(
+        LIVE_COMPRAS_TRANSACTION_COUNT_PAYLOAD,
+        operation_type="Compras",
+        dataset_code=BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
+    )
+
+    assert len(observations) == 2
+    assert observations[0].dataset_code == BANK_CREDIT_CARD_OPS_COMPRAS_DATASET
+    assert observations[0].source_series_id == "105112"
+    assert observations[0].source_codigo == "SBIF_TCRED_BANC_OPER_COMP_AGIFI_BICE_NUM"
+    assert observations[0].institution_code == "BICE"
+    assert observations[0].institution_name == "Banco BICE"
+    assert observations[0].period_month == date(2025, 12, 1)
+    assert observations[0].value == Decimal("1980183.0")
+
+
+def test_parse_nominal_volume_payload_accepts_live_payload_shape():
+    observations = parse_nominal_volume_payload(
+        LIVE_COMPRAS_NOMINAL_VOLUME_PAYLOAD,
+        operation_type="Compras",
+        dataset_code=BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
+    )
+
+    assert len(observations) == 2
+    assert observations[0].dataset_code == BANK_CREDIT_CARD_OPS_COMPRAS_DATASET
+    assert observations[0].source_series_id == "105239"
+    assert observations[0].source_codigo == "SBIF_TCRED_BANC_OPER_COMP_AGIFI_BICE_$"
+    assert observations[0].institution_code == "BICE"
+    assert observations[0].institution_name == "Banco BICE"
+    assert observations[0].period_month == date(2025, 12, 1)
+    assert observations[0].value == Decimal("137211.788458")
 
 
 def test_merge_operation_measure_observations_builds_raw_rows():
