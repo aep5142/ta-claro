@@ -1,4 +1,6 @@
+from datetime import datetime
 from datetime import date
+from zoneinfo import ZoneInfo
 
 from data.loaders.cmf_sync_state_loader import (
     get_latest_state_source_month,
@@ -77,19 +79,27 @@ def test_get_latest_state_source_month_reads_existing_state():
     assert get_latest_state_source_month(sb, "dataset") == date(2026, 4, 1)
 
 
-def test_record_cmf_sync_attempt_writes_attempt_timestamp():
+def test_record_cmf_sync_attempt_writes_attempt_timestamp(monkeypatch):
     sb = FakeSupabase()
 
+    fixed_now = datetime(2026, 4, 24, 12, 34, 56, tzinfo=ZoneInfo("America/Santiago"))
+    import data.loaders.cmf_sync_state_loader as cmf_sync_state_loader
+
+    monkeypatch.setattr(cmf_sync_state_loader, "now_santiago", lambda: fixed_now)
     record_cmf_sync_attempt(sb, "dataset")
 
     assert sb.upserts[0]["table"] == "cmf_dataset_sync_state"
     assert sb.upserts[0]["payload"]["dataset_code"] == "dataset"
-    assert "last_attempted_sync_at" in sb.upserts[0]["payload"]
+    assert sb.upserts[0]["payload"]["last_attempted_sync_at"] == fixed_now.isoformat()
 
 
-def test_record_cmf_sync_success_advances_source_and_curated_months():
+def test_record_cmf_sync_success_advances_source_and_curated_months(monkeypatch):
     sb = FakeSupabase()
 
+    fixed_now = datetime(2026, 4, 24, 12, 34, 56, tzinfo=ZoneInfo("America/Santiago"))
+    import data.loaders.cmf_sync_state_loader as cmf_sync_state_loader
+
+    monkeypatch.setattr(cmf_sync_state_loader, "now_santiago", lambda: fixed_now)
     record_cmf_sync_success(
         sb,
         dataset_code="dataset",
@@ -100,11 +110,16 @@ def test_record_cmf_sync_success_advances_source_and_curated_months():
     assert sb.upserts[0]["payload"]["latest_source_month"] == "2026-04-01"
     assert sb.upserts[0]["payload"]["latest_curated_month"] == "2026-04-01"
     assert sb.upserts[0]["payload"]["last_error"] is None
+    assert sb.upserts[0]["payload"]["last_successful_sync_at"] == fixed_now.isoformat()
 
 
-def test_record_cmf_sync_failure_records_error_without_advancing_months():
+def test_record_cmf_sync_failure_records_error_without_advancing_months(monkeypatch):
     sb = FakeSupabase()
 
+    fixed_now = datetime(2026, 4, 24, 12, 34, 56, tzinfo=ZoneInfo("America/Santiago"))
+    import data.loaders.cmf_sync_state_loader as cmf_sync_state_loader
+
+    monkeypatch.setattr(cmf_sync_state_loader, "now_santiago", lambda: fixed_now)
     record_cmf_sync_failure(
         sb,
         dataset_code="dataset",
@@ -115,3 +130,4 @@ def test_record_cmf_sync_failure_records_error_without_advancing_months():
     assert sb.upserts[0]["payload"]["last_error"] == "ValueError: boom"
     assert "latest_source_month" not in sb.upserts[0]["payload"]
     assert "latest_curated_month" not in sb.upserts[0]["payload"]
+    assert sb.upserts[0]["payload"]["updated_at"] == fixed_now.isoformat()

@@ -122,7 +122,8 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - `institution_code`
   - `institution_name`
   - `period_month`
-  - `nominal_volume_clp`
+  - `nominal_volume_millions_clp` in the raw table
+  - `nominal_volume_thousands_millions_clp` in the curated table
   - `uf_date_used`
   - `uf_value_used`
   - `real_volume_uf`
@@ -148,8 +149,8 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - The parser preserves `source_series_id`, `source_codigo`, and `source_nombre` in raw observations.
 - The parser normalizes supported source periods to first-of-month `date` values.
 - The parser converts CMF numeric values, including string-encoded values, into numeric transaction counts before load.
-- Raw transaction-count upserts target `public.cmf_card_transaction_count_raw` using conflict key `dataset_code,source_codigo,period_month`.
-- Curated transaction-count upserts target `public.cmf_card_transaction_count_curated` using conflict key `institution_code,period_month`.
+- Raw transaction-count upserts target `public.bank_credit_card_transaction_count_raw` using conflict key `dataset_code,source_codigo,period_month`.
+- Curated transaction-count upserts target `public.bank_credit_card_transaction_count_curated` using conflict key `institution_code,period_month`.
 - The Phase 3 one-shot worker skips rows whose `period_month` is not newer than the latest curated transaction-count month.
 - Purchase-volume ingestion is implemented separately and should remain joined with transaction count only in later query/view work.
 
@@ -165,12 +166,12 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - The parser derives `institution_code` from `source_codigo` by taking the token after `AGIFI`.
 - The parser preserves `source_series_id`, `source_codigo`, and `source_nombre` in raw observations.
 - The parser normalizes supported source periods to first-of-month `date` values.
-- The parser converts CMF numeric values, including string-encoded values, into `nominal_volume_clp` before load.
-- Curated purchase-volume enrichment looks up `public.uf_values` using the 15th day of the same month.
+- The parser converts CMF numeric values, including string-encoded values, into `nominal_volume_millions_clp` before load.
+- Curated purchase-volume enrichment looks up `public.uf_values` using the 15th day of the same month and scales the stored curated volume to thousands of millions of CLP.
 - Missing required UF values raise an error and should prevent loading curated purchase-volume rows for that sync.
-- `real_volume_uf` is calculated as `nominal_volume_clp / uf_value_used`.
-- Raw purchase-volume upserts target `public.cmf_card_purchase_volume_raw` using conflict key `dataset_code,source_codigo,period_month`.
-- Curated purchase-volume upserts target `public.cmf_card_purchase_volume_curated` using conflict key `institution_code,period_month`.
+- `real_volume_uf` is calculated from raw millions of CLP as `nominal_volume_millions_clp * 1000000 / uf_value_used`.
+- Raw purchase-volume upserts target `public.bank_credit_card_purchase_volume_raw` using conflict key `dataset_code,source_codigo,period_month`.
+- Curated purchase-volume upserts target `public.bank_credit_card_purchase_volume_curated` using conflict key `institution_code,period_month`.
 - The Phase 4 one-shot worker skips rows whose `period_month` is not newer than the latest curated purchase-volume month.
 
 # Current Shared CMF Worker State
@@ -190,21 +191,25 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - runs the dataset-specific one-shot sync when the source month is newer
   - records success only after the dataset-specific sync succeeds
   - records failure without advancing source or curated month state
+- After successful dataset syncs, the shared worker refreshes the stored `public.bank_credit_card_purchases_metrics` table.
 - Shared CMF state remains separate from UF state.
 
 # Current CMF Schema Assets
 
 - Phase 1 added initial CMF database SQL in `db/001_cmf_foundation.sql`.
+- Phase 6 cleanup SQL lives in `db/004_cmf_cards_cleanup.sql`.
 - The SQL defines CMF-specific tables only and does not alter UF tables:
   - `public.cmf_datasets`
   - `public.cmf_dataset_sync_state`
-  - `public.cmf_card_transaction_count_raw`
-  - `public.cmf_card_transaction_count_curated`
-  - `public.cmf_card_purchase_volume_raw`
-  - `public.cmf_card_purchase_volume_curated`
+  - `public.bank_credit_card_transaction_count_raw`
+  - `public.bank_credit_card_transaction_count_curated`
+  - `public.bank_credit_card_purchase_volume_raw`
+  - `public.bank_credit_card_purchase_volume_curated`
+  - `public.bank_credit_card_purchases_metrics`
 - `public.cmf_datasets` stores the initial active bank credit-card purchase-volume and transaction-count dataset metadata.
 - CMF sync state is separate from UF sync state.
 - CMF curated tables use `institution_code` plus `period_month` as the primary analytical grain for each dataset.
+- The public card read surface is `public.bank_credit_card_purchases`, which exposes `average_ticket_uf` from the stored metrics table and computes `average_ticket_clp_today` at query time.
 
 # UF Operational Direction
 
@@ -225,6 +230,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - sync only when a newer month appears
 - Failed runs should not advance sync state.
 - Keep CMF sync-state separate from UF sync-state.
+- Purchase-volume metrics persist `average_ticket_uf`; `average_ticket_clp_today` is derived at query time from the latest UF.
 
 # Demo Requirements
 
@@ -236,7 +242,8 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - volume in millions of CLP in the UI
   - transaction count in thousands in the UI
 - Also compute and show:
-  - average ticket in CLP using today's UF
+  - average ticket in UF from the stored metrics table
+  - average ticket in CLP using today's UF at query time
   - total growth for volume, transactions, and average ticket
   - CAGR for volume, transactions, and average ticket
 - The UI/demo is expected to read from Supabase tables/views.
@@ -357,6 +364,6 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Add joined DB view(s) for downstream reads.
 - Add operational logging/error-hardening.
 - Finalize test coverage for the v1 path.
-- `db/003_cmf_demo_views.sql` defines `public.cmf_card_monthly_metrics`, `public.cmf_latest_uf`, and `public.cmf_card_monthly_demo_metrics` for demo reads.
+- `db/004_cmf_cards_cleanup.sql` defines the renamed card tables, the stored `public.bank_credit_card_purchases_metrics` table, and the simplified public `public.bank_credit_card_purchases` view.
 - UF sync failures now persist `last_error` in `public.uf_sync_runs`.
 - CMF monthly sync failures now persist `last_error` in `public.cmf_dataset_sync_state`, and the shared worker continues other datasets when one fails.

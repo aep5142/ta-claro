@@ -6,11 +6,17 @@ import pytest
 from data.loaders.cmf_purchase_volume_loader import (
     get_uf_value_for_date,
     latest_curated_purchase_volume_month,
+    refresh_bank_credit_card_purchases_metrics,
     upsert_purchase_volume_curated,
     upsert_purchase_volume_raw,
 )
 from data.models.bank_credit_card_operations import (
+    BANK_CREDIT_CARD_PURCHASES_METRICS_TABLE,
     BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
+    BANK_CREDIT_CARD_PURCHASE_VOLUME_CURATED_TABLE,
+    BANK_CREDIT_CARD_PURCHASE_VOLUME_RAW_TABLE,
+    BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET,
+    BANK_CREDIT_CARD_TRANSACTION_COUNT_CURATED_TABLE,
     CmfPurchaseVolumeCuratedObservation,
     CmfPurchaseVolumeRawObservation,
 )
@@ -63,14 +69,30 @@ class FakeTable:
         if self.name == "uf_values":
             return FakeResponse(self.db["uf_values"].get(self._eq_filter[1], []))
 
+        if self.name == BANK_CREDIT_CARD_PURCHASE_VOLUME_CURATED_TABLE:
+            return FakeResponse(
+                self.db["purchase_volume_curated"] or self.db["latest_curated"]
+            )
+
+        if self.name == BANK_CREDIT_CARD_TRANSACTION_COUNT_CURATED_TABLE:
+            return FakeResponse(self.db["transaction_count_curated"])
+
         return FakeResponse(self.db["latest_curated"])
 
 
 class FakeSupabase:
-    def __init__(self, latest_curated=None, uf_values=None):
+    def __init__(
+        self,
+        latest_curated=None,
+        uf_values=None,
+        purchase_volume_curated=None,
+        transaction_count_curated=None,
+    ):
         self.db = {
             "latest_curated": latest_curated or [],
             "uf_values": uf_values or {},
+            "purchase_volume_curated": purchase_volume_curated or [],
+            "transaction_count_curated": transaction_count_curated or [],
             "upserts": [],
         }
 
@@ -91,7 +113,7 @@ def _raw_observation():
         institution_code="001",
         institution_name="Banco Uno",
         period_month=date(2026, 4, 1),
-        nominal_volume_clp=Decimal("1000000"),
+        nominal_volume_millions_clp=Decimal("4000"),
         source_payload={"Fecha": "2026-04-01", "Valor": "1.000.000"},
     )
 
@@ -101,10 +123,10 @@ def _curated_observation():
         institution_code="001",
         institution_name="Banco Uno",
         period_month=date(2026, 4, 1),
-        nominal_volume_clp=Decimal("1000000"),
+        nominal_volume_thousands_millions_clp=Decimal("4"),
         uf_date_used=date(2026, 4, 15),
         uf_value_used=Decimal("40000"),
-        real_volume_uf=Decimal("25"),
+        real_volume_uf=Decimal("100000"),
         source_dataset_code=BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
     )
 
@@ -135,11 +157,11 @@ def test_upsert_purchase_volume_raw_uses_idempotent_conflict_key():
 
     upsert_purchase_volume_raw(sb, [_raw_observation()])
 
-    assert sb.upserts[0]["table"] == "cmf_card_purchase_volume_raw"
+    assert sb.upserts[0]["table"] == BANK_CREDIT_CARD_PURCHASE_VOLUME_RAW_TABLE
     assert sb.upserts[0]["kwargs"] == {
         "on_conflict": "dataset_code,source_codigo,period_month"
     }
-    assert sb.upserts[0]["payload"][0]["nominal_volume_clp"] == "1000000"
+    assert sb.upserts[0]["payload"][0]["nominal_volume_millions_clp"] == "4000"
 
 
 def test_upsert_purchase_volume_curated_uses_idempotent_conflict_key():
@@ -147,8 +169,42 @@ def test_upsert_purchase_volume_curated_uses_idempotent_conflict_key():
 
     upsert_purchase_volume_curated(sb, [_curated_observation()])
 
-    assert sb.upserts[0]["table"] == "cmf_card_purchase_volume_curated"
+    assert sb.upserts[0]["table"] == BANK_CREDIT_CARD_PURCHASE_VOLUME_CURATED_TABLE
     assert sb.upserts[0]["kwargs"] == {
         "on_conflict": "institution_code,period_month"
     }
-    assert sb.upserts[0]["payload"][0]["real_volume_uf"] == "25"
+    assert sb.upserts[0]["payload"][0]["real_volume_uf"] == "100000"
+
+
+def test_refresh_bank_credit_card_purchases_metrics_upserts_joined_rows():
+    sb = FakeSupabase(
+        purchase_volume_curated=[
+            {
+                "institution_code": "001",
+                "institution_name": "Banco Uno",
+                "period_month": "2026-04-01",
+                "nominal_volume_thousands_millions_clp": "4",
+                "uf_date_used": "2026-04-15",
+                "uf_value_used": "40000",
+                "real_volume_uf": "100000",
+                "source_dataset_code": BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
+            }
+        ],
+        transaction_count_curated=[
+            {
+                "institution_code": "001",
+                "institution_name": "Banco Uno",
+                "period_month": "2026-04-01",
+                "transaction_count": "1000",
+                "source_dataset_code": BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET,
+            }
+        ],
+    )
+
+    refresh_bank_credit_card_purchases_metrics(sb)
+
+    assert sb.upserts[0]["table"] == BANK_CREDIT_CARD_PURCHASES_METRICS_TABLE
+    assert sb.upserts[0]["kwargs"] == {
+        "on_conflict": "institution_code,period_month"
+    }
+    assert sb.upserts[0]["payload"][0]["average_ticket_uf"] == "100"

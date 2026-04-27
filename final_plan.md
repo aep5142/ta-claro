@@ -220,3 +220,36 @@ No autonomous continuation across phases. Approval is required every time.
 - Implementation should be checkpointed in git, not just logically phased.
 - `AGENTS.md` is the durable handoff/state file between phases.
 - Strict control over phase transitions is preferred even if that slows execution.
+
+## Cleanup Follow-Up Plan
+
+This is the next backend cleanup pass after the current working ETL state.
+
+### Summary
+
+- Keep UF and CMF worker behavior intact.
+- Clean up the production read surface.
+- Clarify units end-to-end.
+- Make stored timestamps consistently use Santiago de Chile time.
+
+### Key Changes
+
+- Rename `cmf_card_monthly_metrics` to `bank_credit_card_purchases`.
+- Remove `latest_uf_value` from the public demo surface.
+- Keep `average_ticket_clp_today` as the day-sensitive derived metric.
+- Simplify the metrics views so the read surface is not duplicated.
+- Change purchase-volume units so raw storage is in millions of CLP.
+- Change curated purchase-volume storage to thousands of millions of CLP by dividing raw values by `1000`.
+- Standardize all stored timestamps to Santiago de Chile time, including ETL-written timestamps and SQL defaults.
+
+### Test Plan
+
+- Update SQL view tests to assert the renamed canonical read surface.
+- Add coverage for the purchase-volume unit transform.
+- Add coverage for Santiago-time timestamp writes and defaults.
+- Verify the demo view still exposes the average-ticket metric without exposing `latest_uf_value`.
+
+### Assumptions
+
+- The existing worker code remains unchanged except where needed to support the unit, timestamp, or view cleanup.
+- The UI should read the simplified canonical purchase view directly.

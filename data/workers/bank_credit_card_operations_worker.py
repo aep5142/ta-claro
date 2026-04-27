@@ -15,6 +15,9 @@ from data.loaders.cmf_sync_state_loader import (
     record_cmf_sync_failure,
     record_cmf_sync_success,
 )
+from data.loaders.cmf_purchase_volume_loader import (
+    refresh_bank_credit_card_purchases_metrics,
+)
 from data.models.bank_credit_card_operations import (
     BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
     BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET,
@@ -50,6 +53,7 @@ class CmfMonthlyDataset:
     dataset_code: str
     fetch_latest_source_month: FetchLatestSourceMonth
     sync_dataset: SyncDataset
+    refresh_metrics_after_success: Callable[[object], object] | None = None
 
 
 @dataclass(frozen=True)
@@ -136,11 +140,13 @@ def active_monthly_datasets() -> list[CmfMonthlyDataset]:
             dataset_code=BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET,
             fetch_latest_source_month=fetch_transaction_count_latest_source_month,
             sync_dataset=sync_transaction_count_dataset,
+            refresh_metrics_after_success=refresh_bank_credit_card_purchases_metrics,
         ),
         CmfMonthlyDataset(
             dataset_code=BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
             fetch_latest_source_month=fetch_purchase_volume_latest_source_month,
             sync_dataset=sync_purchase_volume_dataset,
+            refresh_metrics_after_success=refresh_bank_credit_card_purchases_metrics,
         ),
     ]
 
@@ -181,6 +187,8 @@ async def sync_cmf_monthly_dataset_once(
         latest_source_month=latest_source_month,
         latest_curated_month=latest_source_month,
     )
+    if dataset.refresh_metrics_after_success is not None:
+        dataset.refresh_metrics_after_success(sb)
     return rows_synced
 
 

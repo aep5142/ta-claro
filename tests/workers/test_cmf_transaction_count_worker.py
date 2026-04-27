@@ -5,6 +5,8 @@ from decimal import Decimal
 import data.workers.cmf_transaction_count_worker as worker
 from data.models.bank_credit_card_operations import (
     BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET,
+    BANK_CREDIT_CARD_TRANSACTION_COUNT_CURATED_TABLE,
+    BANK_CREDIT_CARD_TRANSACTION_COUNT_RAW_TABLE,
     CmfTransactionCountRawObservation,
 )
 from data.workers.cmf_transaction_count_worker import (
@@ -131,8 +133,8 @@ def test_sync_transaction_count_once_loads_only_newer_months(monkeypatch):
 
     assert rows_synced == 1
     assert [upsert["table"] for upsert in sb.upserts] == [
-        "cmf_card_transaction_count_raw",
-        "cmf_card_transaction_count_curated",
+        BANK_CREDIT_CARD_TRANSACTION_COUNT_RAW_TABLE,
+        BANK_CREDIT_CARD_TRANSACTION_COUNT_CURATED_TABLE,
     ]
     assert sb.upserts[0]["payload"][0]["period_month"] == "2026-04-01"
     assert sb.upserts[1]["payload"][0]["period_month"] == "2026-04-01"

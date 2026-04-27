@@ -23,15 +23,20 @@ def to_curated_purchase_volume(
     for observation in raw_observations:
         uf_date = uf_conversion_date(observation.period_month)
         uf_value = uf_lookup(uf_date)
+        nominal_volume_thousands_millions_clp = (
+            observation.nominal_volume_millions_clp / Decimal("1000")
+        )
         curated_observations.append(
             CmfPurchaseVolumeCuratedObservation(
                 institution_code=observation.institution_code,
                 institution_name=observation.institution_name,
                 period_month=observation.period_month,
-                nominal_volume_clp=observation.nominal_volume_clp,
+                nominal_volume_thousands_millions_clp=nominal_volume_thousands_millions_clp,
                 uf_date_used=uf_date,
                 uf_value_used=uf_value,
-                real_volume_uf=observation.nominal_volume_clp / uf_value,
+                real_volume_uf=(
+                    observation.nominal_volume_millions_clp * Decimal("1000000") / uf_value
+                ),
                 source_dataset_code=BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
             )
         )

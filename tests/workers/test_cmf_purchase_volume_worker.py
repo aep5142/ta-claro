@@ -6,6 +6,8 @@ import pytest
 
 import data.workers.cmf_purchase_volume_worker as worker
 from data.models.bank_credit_card_operations import (
+    BANK_CREDIT_CARD_PURCHASE_VOLUME_CURATED_TABLE,
+    BANK_CREDIT_CARD_PURCHASE_VOLUME_RAW_TABLE,
     BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
     CmfPurchaseVolumeRawObservation,
 )
@@ -88,7 +90,7 @@ def _raw_observation(period_month):
         institution_code="001",
         institution_name="Banco Uno",
         period_month=period_month,
-        nominal_volume_clp=Decimal("1000000"),
+        nominal_volume_millions_clp=Decimal("4000"),
         source_payload={"Fecha": period_month.isoformat(), "Valor": "1.000.000"},
     )
 
@@ -145,12 +147,12 @@ def test_sync_purchase_volume_once_loads_newer_months_with_uf_enrichment(monkeyp
 
     assert rows_synced == 1
     assert [upsert["table"] for upsert in sb.upserts] == [
-        "cmf_card_purchase_volume_raw",
-        "cmf_card_purchase_volume_curated",
+        BANK_CREDIT_CARD_PURCHASE_VOLUME_RAW_TABLE,
+        BANK_CREDIT_CARD_PURCHASE_VOLUME_CURATED_TABLE,
     ]
     assert sb.upserts[0]["payload"][0]["period_month"] == "2026-04-01"
     assert sb.upserts[1]["payload"][0]["uf_date_used"] == "2026-04-15"
-    assert sb.upserts[1]["payload"][0]["real_volume_uf"] == "25"
+    assert sb.upserts[1]["payload"][0]["real_volume_uf"] == "100000"
 
 
 def test_sync_purchase_volume_once_fails_when_required_uf_is_missing(monkeypatch):

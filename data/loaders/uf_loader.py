@@ -1,4 +1,6 @@
-from datetime import date, datetime, timezone
+from datetime import date
+
+from shared.time import now_santiago
 
 from data.models.uf import UfValue
 
@@ -55,7 +57,7 @@ def record_uf_sync_success(
                     latest_stored_date.isoformat() if latest_stored_date else None
                 ),
                 "rows_upserted": rows_upserted,
-                "synced_at": datetime.now(timezone.utc).isoformat(),
+                "synced_at": now_santiago().isoformat(),
                 "last_error": None,
             },
             on_conflict="sync_key",
@@ -71,7 +73,7 @@ def record_uf_sync_failure(sb, error: Exception):
             {
                 "sync_key": UF_SYNC_KEY,
                 "last_error": f"{type(error).__name__}: {error}",
-                "synced_at": datetime.now(timezone.utc).isoformat(),
+                "synced_at": now_santiago().isoformat(),
             },
             on_conflict="sync_key",
         )

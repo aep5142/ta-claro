@@ -78,7 +78,7 @@ def test_parse_purchase_volume_payload_normalizes_nominal_clp_observations():
     assert observations[0].institution_code == "001"
     assert observations[0].institution_name == "Banco Uno"
     assert observations[0].period_month == date(2026, 3, 1)
-    assert observations[0].nominal_volume_clp == Decimal("1000000")
+    assert observations[0].nominal_volume_millions_clp == Decimal("1000000")
     assert observations[0].source_payload == {
         "Fecha": "2026-03-01",
         "Valor": "1.000.000",
@@ -106,8 +106,8 @@ def test_parse_purchase_volume_payload_accepts_live_cmf_shape():
     assert observations[0].institution_name == "Banco BICE"
     assert observations[0].source_nombre == "Banco BICE"
     assert observations[0].period_month == date(2025, 12, 1)
-    assert observations[0].nominal_volume_clp == Decimal("137211.788458")
+    assert observations[0].nominal_volume_millions_clp == Decimal("137211.788458")
     assert observations[0].source_payload == {"fecha": 20251201, "valor": 137211.788458}
     assert observations[1].period_month == date(2026, 1, 1)
-    assert observations[1].nominal_volume_clp == Decimal("120507.338158")
+    assert observations[1].nominal_volume_millions_clp == Decimal("120507.338158")
     assert observations[1].source_payload == {"fecha": 20260101, "valor": 120507.338158}

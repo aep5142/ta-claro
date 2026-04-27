@@ -8,6 +8,8 @@ from data.loaders.cmf_transaction_count_loader import (
 )
 from data.models.bank_credit_card_operations import (
     BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET,
+    BANK_CREDIT_CARD_TRANSACTION_COUNT_CURATED_TABLE,
+    BANK_CREDIT_CARD_TRANSACTION_COUNT_RAW_TABLE,
     CmfTransactionCountCuratedObservation,
     CmfTransactionCountRawObservation,
 )
@@ -107,7 +109,7 @@ def test_upsert_transaction_count_raw_uses_idempotent_conflict_key():
 
     upsert_transaction_count_raw(sb, [_raw_observation()])
 
-    assert sb.upserts[0]["table"] == "cmf_card_transaction_count_raw"
+    assert sb.upserts[0]["table"] == BANK_CREDIT_CARD_TRANSACTION_COUNT_RAW_TABLE
     assert sb.upserts[0]["kwargs"] == {
         "on_conflict": "dataset_code,source_codigo,period_month"
     }
@@ -119,7 +121,7 @@ def test_upsert_transaction_count_curated_uses_idempotent_conflict_key():
 
     upsert_transaction_count_curated(sb, [_curated_observation()])
 
-    assert sb.upserts[0]["table"] == "cmf_card_transaction_count_curated"
+    assert sb.upserts[0]["table"] == BANK_CREDIT_CARD_TRANSACTION_COUNT_CURATED_TABLE
     assert sb.upserts[0]["kwargs"] == {
         "on_conflict": "institution_code,period_month"
     }

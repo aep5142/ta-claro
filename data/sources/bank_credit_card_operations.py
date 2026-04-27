@@ -165,7 +165,7 @@ def parse_purchase_volume_payload(
                     period_month=normalize_period_month(
                         _first_present(point, "Fecha", "fecha", "period", "Periodo")
                     ),
-                    nominal_volume_clp=parse_cmf_numeric(
+                    nominal_volume_millions_clp=parse_cmf_numeric(
                         _first_present(point, "Valor", "valor", "value")
                     ),
                     source_payload=point,

@@ -1,4 +1,6 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime
+
+from shared.time import now_santiago
 
 
 def get_cmf_sync_state(sb, dataset_code: str) -> dict | None:
@@ -30,7 +32,7 @@ def record_cmf_sync_attempt(sb, dataset_code: str):
         .upsert(
             {
                 "dataset_code": dataset_code,
-                "last_attempted_sync_at": datetime.now(timezone.utc).isoformat(),
+                "last_attempted_sync_at": now_santiago().isoformat(),
             },
             on_conflict="dataset_code",
         )
@@ -52,9 +54,9 @@ def record_cmf_sync_success(
                 "dataset_code": dataset_code,
                 "latest_source_month": latest_source_month.isoformat(),
                 "latest_curated_month": latest_curated_month.isoformat(),
-                "last_successful_sync_at": datetime.now(timezone.utc).isoformat(),
+                "last_successful_sync_at": now_santiago().isoformat(),
                 "last_error": None,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": now_santiago().isoformat(),
             },
             on_conflict="dataset_code",
         )
@@ -69,7 +71,7 @@ def record_cmf_sync_failure(sb, *, dataset_code: str, error: Exception):
             {
                 "dataset_code": dataset_code,
                 "last_error": f"{type(error).__name__}: {error}",
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": now_santiago().isoformat(),
             },
             on_conflict="dataset_code",
         )

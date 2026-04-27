@@ -1,9 +1,13 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from datetime import date
 
 from data.loaders.uf_loader import (
     latest_stored_uf_date,
     new_uf_values,
     record_uf_sync_failure,
+    record_uf_sync_success,
 )
 from data.models.uf import UfValue
 
@@ -98,11 +102,32 @@ def test_new_uf_values_returns_all_rows_when_no_stored_date_exists():
     assert new_uf_values(source_values, None) == source_values
 
 
-def test_record_uf_sync_failure_writes_last_error_state():
+def test_record_uf_sync_failure_writes_last_error_state(monkeypatch):
     sb = FakeSyncSupabase()
 
+    fixed_now = datetime(2026, 4, 24, 12, 34, 56, tzinfo=ZoneInfo("America/Santiago"))
+    import data.loaders.uf_loader as uf_loader
+
+    monkeypatch.setattr(uf_loader, "now_santiago", lambda: fixed_now)
     record_uf_sync_failure(sb, RuntimeError("source failed"))
 
     assert sb.upserts[0]["payload"]["sync_key"] == "uf_values"
     assert sb.upserts[0]["payload"]["last_error"] == "RuntimeError: source failed"
-    assert "synced_at" in sb.upserts[0]["payload"]
+    assert sb.upserts[0]["payload"]["synced_at"] == fixed_now.isoformat()
+
+
+def test_record_uf_sync_success_writes_santiago_timestamp(monkeypatch):
+    sb = FakeSyncSupabase()
+
+    fixed_now = datetime(2026, 4, 24, 12, 34, 56, tzinfo=ZoneInfo("America/Santiago"))
+    import data.loaders.uf_loader as uf_loader
+
+    monkeypatch.setattr(uf_loader, "now_santiago", lambda: fixed_now)
+    record_uf_sync_success(
+        sb,
+        latest_source_date=date(2026, 4, 16),
+        latest_stored_date=date(2026, 4, 16),
+        rows_upserted=1,
+    )
+
+    assert sb.upserts[0]["payload"]["synced_at"] == fixed_now.isoformat()

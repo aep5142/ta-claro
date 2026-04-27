@@ -22,7 +22,7 @@ def _raw_observation():
         institution_code="001",
         institution_name="Banco Uno",
         period_month=date(2026, 4, 1),
-        nominal_volume_clp=Decimal("1000000"),
+        nominal_volume_millions_clp=Decimal("4000"),
         source_payload={"Fecha": "2026-04-01", "Valor": "1.000.000"},
     )
 
@@ -42,10 +42,10 @@ def test_to_curated_purchase_volume_enriches_with_uf_and_real_volume():
     assert len(curated) == 1
     assert curated[0].institution_code == "001"
     assert curated[0].period_month == date(2026, 4, 1)
-    assert curated[0].nominal_volume_clp == Decimal("1000000")
+    assert curated[0].nominal_volume_thousands_millions_clp == Decimal("4")
     assert curated[0].uf_date_used == date(2026, 4, 15)
     assert curated[0].uf_value_used == Decimal("40000")
-    assert curated[0].real_volume_uf == Decimal("25")
+    assert curated[0].real_volume_uf == Decimal("100000")
     assert curated[0].source_dataset_code == BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET
 
 
