@@ -54,9 +54,8 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 
 - The UF worker logic exists locally.
 - Railway should run workers as worker services, not request/response web apps.
-- The CMF transaction-count pipeline exists locally as a one-shot worker path.
-- The CMF purchase-volume pipeline exists locally as a one-shot worker path.
-- The shared CMF daily worker loop exists locally for the two active card datasets.
+- The legacy split CMF purchase-volume and transaction-count worker paths are retired and archived.
+- The active CMF daily worker loop is the unified credit-card ops worker.
 
 # Frontend/Auth Direction
 
@@ -250,6 +249,12 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Phase 4 added CMF purchase-volume transform, loader, and one-shot worker modules, and extended shared CMF card source/model code.
 - Phase 5 added shared CMF sync-state loader and daily worker orchestration modules.
 - The unified ops refactor replaced the purchase-only split with `bank_credit_card_ops_*` tables, `data/workers/bank_credit_card_ops_worker.py`, and `db/003_bank_credit_card_ops_views.sql`.
+- Deprecated split-CMF transforms, loaders, and workers are being moved under `archive/` folders inside their ETL layer directories.
+- The active card ETL code path is:
+  - `data/workers/bank_credit_card_ops_worker.py`
+  - `data/loaders/bank_credit_card_ops_loader.py`
+  - `data/loaders/bank_credit_card_ops_sync_state_loader.py`
+  - `data/transforms/bank_credit_card_ops.py`
 - Empty structural directories are tracked with `.gitkeep` placeholders.
 
 # Planned Testing Structure
