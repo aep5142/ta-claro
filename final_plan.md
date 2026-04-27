@@ -234,22 +234,21 @@ This is the next backend cleanup pass after the current working ETL state.
 
 ### Key Changes
 
-- Rename `cmf_card_monthly_metrics` to `bank_credit_card_purchase`.
-- Remove `latest_uf_value` from the public demo surface.
-- Keep `average_ticket_clp_today` as the day-sensitive derived metric.
+- Rename `cmf_card_monthly_metrics` to `bank_credit_card_ops_metrics`.
+- Roll back the purchase-only split and store all credit-card operations in the unified `bank_credit_card_ops_*` tables.
+- Keep `average_ticket_uf` stored and compute `average_ticket_clp_today` at query time.
 - Simplify the metrics views so the read surface is not duplicated.
-- Change purchase-volume units so raw storage is in millions of CLP.
-- Change curated purchase-volume storage to thousands of millions of CLP by dividing raw values by `1000`.
+- Standardize the operations volume units so raw storage is in millions of CLP and curated storage is in thousands of millions of CLP by dividing raw values by `1000`.
 - Standardize all stored timestamps to Santiago de Chile time, including ETL-written timestamps and SQL defaults.
 
 ### Test Plan
 
-- Update SQL view tests to assert the renamed canonical read surface.
-- Add coverage for the purchase-volume unit transform.
+- Update SQL view tests to assert the unified canonical read surface.
+- Add coverage for the unified operations unit transform.
 - Add coverage for Santiago-time timestamp writes and defaults.
 - Verify the demo view still exposes the average-ticket metric without exposing `latest_uf_value`.
 
 ### Assumptions
 
-- The existing worker code remains unchanged except where needed to support the unit, timestamp, or view cleanup.
-- The UI should read the simplified canonical purchase view directly.
+- The existing worker code now uses the unified operations path; keep only the UF worker isolated.
+- The UI should read the unified `bank_credit_card_ops_metrics` view directly.

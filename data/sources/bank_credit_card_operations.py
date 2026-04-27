@@ -1,17 +1,20 @@
+from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 from urllib.parse import urlencode
 
 from data.models.bank_credit_card_operations import (
-    BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
-    BANK_CREDIT_CARD_PURCHASE_VOLUME_TAG,
-    BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET,
-    BANK_CREDIT_CARD_TRANSACTION_COUNT_TAG,
-    CMF_CARDS_START_DATE,
-    CmfPurchaseVolumeRawObservation,
-    CmfTransactionCountRawObservation,
+    BankCreditCardOperationConfig,
+    BankCreditCardOpsMeasureObservation,
+    BankCreditCardOpsRawObservation,
 )
+
+
+@dataclass(frozen=True)
+class BankCreditCardOpsObservationBatch:
+    raw_observations: list[BankCreditCardOpsRawObservation]
+    latest_source_month: date | None
 
 
 def build_cmf_cuadros_url(
@@ -19,7 +22,7 @@ def build_cmf_cuadros_url(
     endpoint_base: str,
     tag: str,
     fecha_fin: date,
-    fecha_inicio: str = CMF_CARDS_START_DATE,
+    fecha_inicio: str,
 ) -> str:
     query = urlencode(
         {
@@ -88,9 +91,10 @@ def normalize_period_month(raw_period: str | int | date) -> date:
 def parse_transaction_count_payload(
     payload: dict[str, Any],
     *,
-    dataset_code: str = BANK_CREDIT_CARD_TRANSACTION_COUNT_DATASET,
-) -> list[CmfTransactionCountRawObservation]:
-    observations: list[CmfTransactionCountRawObservation] = []
+    operation_type: str,
+    dataset_code: str,
+) -> list[BankCreditCardOpsMeasureObservation]:
+    observations: list[BankCreditCardOpsMeasureObservation] = []
 
     for series in _get_series(payload):
         source_codigo = _first_present(series, "Codigo", "codigo", "source_codigo")
@@ -107,7 +111,8 @@ def parse_transaction_count_payload(
 
         for point in _get_observations(series):
             observations.append(
-                CmfTransactionCountRawObservation(
+                BankCreditCardOpsMeasureObservation(
+                    operation_type=operation_type,
                     dataset_code=dataset_code,
                     source_series_id=source_series_id,
                     source_codigo=source_codigo,
@@ -117,28 +122,24 @@ def parse_transaction_count_payload(
                     period_month=normalize_period_month(
                         _first_present(point, "Fecha", "fecha", "period", "Periodo")
                     ),
-                    transaction_count=parse_cmf_numeric(
-                        _first_present(point, "Valor", "valor", "value")
-                    ),
+                    value=parse_cmf_numeric(_first_present(point, "Valor", "valor", "value")),
                     source_payload=point,
                 )
             )
 
     return sorted(
         observations,
-        key=lambda observation: (
-            observation.institution_code,
-            observation.period_month,
-        ),
+        key=lambda observation: (observation.institution_code, observation.period_month),
     )
 
 
-def parse_purchase_volume_payload(
+def parse_nominal_volume_payload(
     payload: dict[str, Any],
     *,
-    dataset_code: str = BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
-) -> list[CmfPurchaseVolumeRawObservation]:
-    observations: list[CmfPurchaseVolumeRawObservation] = []
+    operation_type: str,
+    dataset_code: str,
+) -> list[BankCreditCardOpsMeasureObservation]:
+    observations: list[BankCreditCardOpsMeasureObservation] = []
 
     for series in _get_series(payload):
         source_codigo = _first_present(series, "Codigo", "codigo", "source_codigo")
@@ -155,7 +156,8 @@ def parse_purchase_volume_payload(
 
         for point in _get_observations(series):
             observations.append(
-                CmfPurchaseVolumeRawObservation(
+                BankCreditCardOpsMeasureObservation(
+                    operation_type=operation_type,
                     dataset_code=dataset_code,
                     source_series_id=source_series_id,
                     source_codigo=source_codigo,
@@ -165,84 +167,155 @@ def parse_purchase_volume_payload(
                     period_month=normalize_period_month(
                         _first_present(point, "Fecha", "fecha", "period", "Periodo")
                     ),
-                    nominal_volume_millions_clp=parse_cmf_numeric(
-                        _first_present(point, "Valor", "valor", "value")
-                    ),
+                    value=parse_cmf_numeric(_first_present(point, "Valor", "valor", "value")),
                     source_payload=point,
                 )
             )
 
     return sorted(
         observations,
-        key=lambda observation: (
-            observation.institution_code,
-            observation.period_month,
-        ),
+        key=lambda observation: (observation.institution_code, observation.period_month),
     )
 
 
-async def fetch_transaction_count_payload(
-    client,
+def merge_operation_measure_observations(
     *,
-    endpoint_base: str,
-    fecha_fin: date,
-):
-    response = await client.get(
-        build_cmf_cuadros_url(
-            endpoint_base=endpoint_base,
-            tag=BANK_CREDIT_CARD_TRANSACTION_COUNT_TAG,
-            fecha_fin=fecha_fin,
-        ),
-        timeout=30,
-    )
-    response.raise_for_status()
-    return response.json()
+    operation_type: str,
+    dataset_code: str,
+    transaction_count_observations: list[BankCreditCardOpsMeasureObservation],
+    nominal_volume_observations: list[BankCreditCardOpsMeasureObservation],
+) -> list[BankCreditCardOpsRawObservation]:
+    count_by_key = {
+        (observation.institution_code, observation.period_month): observation
+        for observation in transaction_count_observations
+    }
+    volume_by_key = {
+        (observation.institution_code, observation.period_month): observation
+        for observation in nominal_volume_observations
+    }
 
+    keys = sorted(set(count_by_key) & set(volume_by_key))
+    if not keys:
+        return []
 
-async def fetch_purchase_volume_payload(
-    client,
-    *,
-    endpoint_base: str,
-    fecha_fin: date,
-):
-    response = await client.get(
-        build_cmf_cuadros_url(
-            endpoint_base=endpoint_base,
-            tag=BANK_CREDIT_CARD_PURCHASE_VOLUME_TAG,
-            fecha_fin=fecha_fin,
-        ),
-        timeout=30,
-    )
-    response.raise_for_status()
-    return response.json()
+    raw_observations: list[BankCreditCardOpsRawObservation] = []
+    for key in keys:
+        count_observation = count_by_key[key]
+        volume_observation = volume_by_key[key]
+        raw_observations.append(
+            BankCreditCardOpsRawObservation(
+                operation_type=operation_type,
+                dataset_code=dataset_code,
+                source_series_id=volume_observation.source_series_id,
+                source_codigo=volume_observation.source_codigo,
+                source_nombre=volume_observation.source_nombre,
+                institution_code=volume_observation.institution_code,
+                institution_name=volume_observation.institution_name,
+                period_month=volume_observation.period_month,
+                transaction_count=count_observation.value,
+                nominal_volume_millions_clp=volume_observation.value,
+                source_payload={
+                    "transaction_count": count_observation.source_payload,
+                    "nominal_volume_millions_clp": volume_observation.source_payload,
+                },
+            )
+        )
+
+    return raw_observations
 
 
 async def fetch_transaction_count_observations(
     client,
     *,
     endpoint_base: str,
+    tag: str,
+    fecha_inicio: str,
     fecha_fin: date,
-) -> list[CmfTransactionCountRawObservation]:
-    payload = await fetch_transaction_count_payload(
-        client,
-        endpoint_base=endpoint_base,
-        fecha_fin=fecha_fin,
+    operation_type: str,
+    dataset_code: str,
+) -> list[BankCreditCardOpsMeasureObservation]:
+    response = await client.get(
+        build_cmf_cuadros_url(
+            endpoint_base=endpoint_base,
+            tag=tag,
+            fecha_fin=fecha_fin,
+            fecha_inicio=fecha_inicio,
+        ),
+        timeout=30,
     )
-    return parse_transaction_count_payload(payload)
+    response.raise_for_status()
+    return parse_transaction_count_payload(
+        response.json(),
+        operation_type=operation_type,
+        dataset_code=dataset_code,
+    )
 
 
-async def fetch_purchase_volume_observations(
+async def fetch_nominal_volume_observations(
     client,
     *,
     endpoint_base: str,
+    tag: str,
+    fecha_inicio: str,
     fecha_fin: date,
-) -> list[CmfPurchaseVolumeRawObservation]:
-    payload = await fetch_purchase_volume_payload(
-        client,
-        endpoint_base=endpoint_base,
-        fecha_fin=fecha_fin,
+    operation_type: str,
+    dataset_code: str,
+) -> list[BankCreditCardOpsMeasureObservation]:
+    response = await client.get(
+        build_cmf_cuadros_url(
+            endpoint_base=endpoint_base,
+            tag=tag,
+            fecha_fin=fecha_fin,
+            fecha_inicio=fecha_inicio,
+        ),
+        timeout=30,
     )
-    return parse_purchase_volume_payload(payload)
+    response.raise_for_status()
+    return parse_nominal_volume_payload(
+        response.json(),
+        operation_type=operation_type,
+        dataset_code=dataset_code,
+    )
+
+
+async def fetch_operation_batch(
+    client,
+    *,
+    config: BankCreditCardOperationConfig,
+    fecha_fin: date,
+) -> BankCreditCardOpsObservationBatch:
+    transaction_count_observations = await fetch_transaction_count_observations(
+        client,
+        endpoint_base=config.source_endpoint_base,
+        tag=config.transaction_count_source_tag,
+        fecha_inicio=config.start_date.strftime("%Y%m%d"),
+        fecha_fin=fecha_fin,
+        operation_type=config.operation_type,
+        dataset_code=config.dataset_code,
+    )
+    nominal_volume_observations = await fetch_nominal_volume_observations(
+        client,
+        endpoint_base=config.source_endpoint_base,
+        tag=config.nominal_volume_source_tag,
+        fecha_inicio=config.start_date.strftime("%Y%m%d"),
+        fecha_fin=fecha_fin,
+        operation_type=config.operation_type,
+        dataset_code=config.dataset_code,
+    )
+
+    raw_observations = merge_operation_measure_observations(
+        operation_type=config.operation_type,
+        dataset_code=config.dataset_code,
+        transaction_count_observations=transaction_count_observations,
+        nominal_volume_observations=nominal_volume_observations,
+    )
+    latest_source_month = (
+        max((observation.period_month for observation in raw_observations), default=None)
+    )
+    return BankCreditCardOpsObservationBatch(
+        raw_observations=raw_observations,
+        latest_source_month=latest_source_month,
+    )
 
 
 def _get_series(payload: dict[str, Any]) -> list[dict[str, Any]]:

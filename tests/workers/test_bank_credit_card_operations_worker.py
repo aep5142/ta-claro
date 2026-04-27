@@ -1,21 +1,22 @@
 import asyncio
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
-from data.workers.bank_credit_card_operations_worker import (
-    CmfMonthlyDataset,
-    CmfMonthlyWorkerConfig,
-    active_monthly_datasets,
-    latest_observation_month,
-    sync_all_cmf_monthly_datasets_once,
-    sync_cmf_monthly_dataset_once,
+from data.models.bank_credit_card_operations import (
+    BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET,
+    BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
+    BankCreditCardOperationConfig,
+    BankCreditCardOpsRawObservation,
 )
-
-
-class Observation:
-    def __init__(self, period_month):
-        self.period_month = period_month
+from data.sources.bank_credit_card_operations import BankCreditCardOpsObservationBatch
+from data.workers.bank_credit_card_ops_worker import (
+    BankCreditCardOpsWorkerConfig,
+    load_active_operation_configs,
+    sync_all_bank_credit_card_ops_once,
+    sync_operation_once,
+)
 
 
 class FakeResponse:
@@ -41,6 +42,9 @@ class FakeTable:
     def limit(self, *_args):
         return self
 
+    def order(self, *_args, **_kwargs):
+        return self
+
     def upsert(self, payload, **kwargs):
         self._upsert_payload = payload
         self._upsert_kwargs = kwargs
@@ -57,13 +61,30 @@ class FakeTable:
             )
             return FakeResponse()
 
-        return FakeResponse(self.db["states"].get(self._eq_filter[1], []))
+        if self.name == "bank_credit_card_ops_registry":
+            return FakeResponse(
+                [
+                    row
+                    for row in self.db["registry"]
+                    if self._eq_filter is None or row[self._eq_filter[0]] == self._eq_filter[1]
+                ]
+            )
+
+        if self.name == "bank_credit_card_ops_sync_state":
+            return FakeResponse(self.db["states"].get(self._eq_filter[1], []))
+
+        if self.name == "uf_values":
+            return FakeResponse(self.db["uf_values"].get(self._eq_filter[1], []))
+
+        return FakeResponse(self.db.get(self.name, []))
 
 
 class FakeSupabase:
-    def __init__(self, states=None):
+    def __init__(self, registry=None, states=None, uf_values=None):
         self.db = {
+            "registry": registry or [],
             "states": states or {},
+            "uf_values": uf_values or {},
             "upserts": [],
         }
 
@@ -75,53 +96,103 @@ class FakeSupabase:
         return self.db["upserts"]
 
 
-def _dataset(dataset_code, latest_source_month, rows_synced=1):
-    async def fetch_latest_source_month(_client, _endpoint_base, _run_date):
-        return latest_source_month
-
-    async def sync_dataset(_client, _sb, _endpoint_base, _run_date):
-        return rows_synced
-
-    return CmfMonthlyDataset(
+def _config(dataset_code: str, operation_type: str) -> BankCreditCardOperationConfig:
+    return BankCreditCardOperationConfig(
+        operation_type=operation_type,
         dataset_code=dataset_code,
-        fetch_latest_source_month=fetch_latest_source_month,
-        sync_dataset=sync_dataset,
+        transaction_count_source_tag="count-tag",
+        nominal_volume_source_tag="volume-tag",
+        source_nombre=operation_type,
+        source_description=f"{operation_type} description",
+        source_endpoint_base="https://cmf.example",
+        refresh_frequency="monthly",
+        start_date=date(2009, 4, 1),
     )
 
 
-def _failing_dataset(dataset_code, error_message):
-    async def fetch_latest_source_month(_client, _endpoint_base, _run_date):
-        raise RuntimeError(error_message)
+def _batch(dataset_code: str, operation_type: str, period_month: date, rows_synced: int = 1):
+    raw_observations = [
+        BankCreditCardOpsRawObservation(
+            operation_type=operation_type,
+            dataset_code=dataset_code,
+            source_series_id="301",
+            source_codigo="SBIF_TCRED_BANC_COMP_AGIFI_BICE_$",
+            source_nombre="Banco BICE",
+            institution_code="BICE",
+            institution_name="Banco BICE",
+            period_month=period_month,
+            transaction_count=Decimal("2500"),
+            nominal_volume_millions_clp=Decimal("120507338"),
+            source_payload={"transaction_count": {}, "nominal_volume_millions_clp": {}},
+        )
+        for _ in range(rows_synced)
+    ]
 
-    async def sync_dataset(_client, _sb, _endpoint_base, _run_date):
-        return 0
-
-    return CmfMonthlyDataset(
-        dataset_code=dataset_code,
-        fetch_latest_source_month=fetch_latest_source_month,
-        sync_dataset=sync_dataset,
+    return BankCreditCardOpsObservationBatch(
+        raw_observations=raw_observations,
+        latest_source_month=period_month,
     )
 
 
-def test_latest_observation_month_returns_max_month():
-    assert latest_observation_month(
-        [
-            Observation(date(2026, 3, 1)),
-            Observation(date(2026, 4, 1)),
+def test_load_active_operation_configs_reads_registry_rows():
+    sb = FakeSupabase(
+        registry=[
+            {
+                "operation_type": "Compras",
+                "dataset_code": BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
+                "transaction_count_source_tag": "count-tag",
+                "nominal_volume_source_tag": "volume-tag",
+                "source_nombre": "Compras",
+                "source_description": "Compras desc",
+                "source_endpoint_base": "https://cmf.example",
+                "refresh_frequency": "monthly",
+                "start_date": "2009-04-01",
+                "is_active": True,
+            },
+            {
+                "operation_type": "Avance en Efectivo",
+                "dataset_code": BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET,
+                "transaction_count_source_tag": "count-tag-2",
+                "nominal_volume_source_tag": "volume-tag-2",
+                "source_nombre": "Avance en Efectivo",
+                "source_description": "Avance desc",
+                "source_endpoint_base": "https://cmf.example",
+                "refresh_frequency": "monthly",
+                "start_date": "2009-04-01",
+                "is_active": True,
+            },
         ]
-    ) == date(2026, 4, 1)
+    )
+
+    configs = load_active_operation_configs(sb)
+
+    assert [config.dataset_code for config in configs] == [
+        BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
+        BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET,
+    ]
 
 
-def test_sync_cmf_monthly_dataset_once_noops_when_source_month_is_unchanged():
-    dataset = _dataset("dataset", date(2026, 4, 1))
-    sb = FakeSupabase(states={"dataset": [{"latest_source_month": "2026-04-01"}]})
+def test_sync_operation_once_noops_when_source_month_is_unchanged(monkeypatch):
+    dataset = _config(BANK_CREDIT_CARD_OPS_COMPRAS_DATASET, "Compras")
+    sb = FakeSupabase(
+        states={BANK_CREDIT_CARD_OPS_COMPRAS_DATASET: [{"latest_source_month": "2026-04-01"}]},
+        uf_values={"2026-04-15": [{"value": "40000"}]},
+    )
+
+    async def fake_fetch_operation_batch(_client, *, config, fecha_fin):
+        assert config.dataset_code == BANK_CREDIT_CARD_OPS_COMPRAS_DATASET
+        return _batch(dataset.dataset_code, dataset.operation_type, date(2026, 4, 1))
+
+    monkeypatch.setattr(
+        "data.workers.bank_credit_card_ops_worker.fetch_operation_batch",
+        fake_fetch_operation_batch,
+    )
 
     rows_synced = asyncio.run(
-        sync_cmf_monthly_dataset_once(
+        sync_operation_once(
             None,
             sb,
-            dataset=dataset,
-            endpoint_base="https://cmf.example",
+            config=dataset,
             run_date=date(2026, 4, 24),
         )
     )
@@ -131,47 +202,61 @@ def test_sync_cmf_monthly_dataset_once_noops_when_source_month_is_unchanged():
     assert "last_attempted_sync_at" in sb.upserts[0]["payload"]
 
 
-def test_sync_cmf_monthly_dataset_once_syncs_newer_source_and_advances_state():
-    dataset = _dataset("dataset", date(2026, 4, 1), rows_synced=5)
-    sb = FakeSupabase(states={"dataset": [{"latest_source_month": "2026-03-01"}]})
+def test_sync_operation_once_syncs_newer_source_and_advances_state(monkeypatch):
+    dataset = _config(BANK_CREDIT_CARD_OPS_COMPRAS_DATASET, "Compras")
+    sb = FakeSupabase(
+        states={BANK_CREDIT_CARD_OPS_COMPRAS_DATASET: [{"latest_source_month": "2026-03-01"}]},
+        uf_values={"2026-04-15": [{"value": "40000"}]},
+    )
+
+    async def fake_fetch_operation_batch(_client, *, config, fecha_fin):
+        return _batch(config.dataset_code, config.operation_type, date(2026, 4, 1))
+
+    monkeypatch.setattr(
+        "data.workers.bank_credit_card_ops_worker.fetch_operation_batch",
+        fake_fetch_operation_batch,
+    )
 
     rows_synced = asyncio.run(
-        sync_cmf_monthly_dataset_once(
+        sync_operation_once(
             None,
             sb,
-            dataset=dataset,
-            endpoint_base="https://cmf.example",
+            config=dataset,
             run_date=date(2026, 4, 24),
         )
     )
 
-    assert rows_synced == 5
-    assert sb.upserts[-1]["payload"]["latest_source_month"] == "2026-04-01"
-    assert sb.upserts[-1]["payload"]["latest_curated_month"] == "2026-04-01"
-    assert sb.upserts[-1]["payload"]["last_error"] is None
+    assert rows_synced == 1
+    assert sb.upserts[1]["table"] == "bank_credit_card_ops_raw"
+    assert sb.upserts[1]["payload"][0]["transaction_count"] == "2500"
+    assert sb.upserts[2]["table"] == "bank_credit_card_ops_curated"
+    assert sb.upserts[2]["payload"][0]["average_ticket_uf"] == "0.00120507338"
+    assert sb.upserts[3]["table"] == "bank_credit_card_ops_sync_state"
+    assert sb.upserts[3]["payload"]["latest_source_month"] == "2026-04-01"
+    assert sb.upserts[3]["payload"]["latest_curated_month"] == "2026-04-01"
+    assert sb.upserts[3]["payload"]["last_error"] is None
 
 
-def test_sync_cmf_monthly_dataset_once_records_failure_without_advancing_state():
-    async def fetch_latest_source_month(_client, _endpoint_base, _run_date):
-        return date(2026, 4, 1)
+def test_sync_operation_once_records_failure_without_advancing_state(monkeypatch):
+    dataset = _config(BANK_CREDIT_CARD_OPS_COMPRAS_DATASET, "Compras")
+    sb = FakeSupabase(
+        states={BANK_CREDIT_CARD_OPS_COMPRAS_DATASET: [{"latest_source_month": "2026-03-01"}]},
+    )
 
-    async def sync_dataset(_client, _sb, _endpoint_base, _run_date):
+    async def fake_fetch_operation_batch(_client, *, config, fecha_fin):
         raise RuntimeError("load failed")
 
-    dataset = CmfMonthlyDataset(
-        dataset_code="dataset",
-        fetch_latest_source_month=fetch_latest_source_month,
-        sync_dataset=sync_dataset,
+    monkeypatch.setattr(
+        "data.workers.bank_credit_card_ops_worker.fetch_operation_batch",
+        fake_fetch_operation_batch,
     )
-    sb = FakeSupabase(states={"dataset": [{"latest_source_month": "2026-03-01"}]})
 
     with pytest.raises(RuntimeError, match="load failed"):
         asyncio.run(
-            sync_cmf_monthly_dataset_once(
+            sync_operation_once(
                 None,
                 sb,
-                dataset=dataset,
-                endpoint_base="https://cmf.example",
+                config=dataset,
                 run_date=date(2026, 4, 24),
             )
         )
@@ -181,59 +266,38 @@ def test_sync_cmf_monthly_dataset_once_records_failure_without_advancing_state()
     assert "latest_curated_month" not in sb.upserts[-1]["payload"]
 
 
-def test_sync_all_cmf_monthly_datasets_once_continues_after_one_dataset_failure():
-    datasets = [
-        _failing_dataset("transactions", "source unavailable"),
-        _dataset("volume", date(2026, 4, 1), rows_synced=3),
-    ]
-    sb = FakeSupabase(states={"volume": [{"latest_source_month": "2026-03-01"}]})
-
-    results = asyncio.run(
-        sync_all_cmf_monthly_datasets_once(
-            None,
-            sb,
-            config=CmfMonthlyWorkerConfig(
-                supabase_url="https://supabase.example",
-                supabase_service_role_key="service-role",
-                endpoint_base="https://cmf.example",
-            ),
-            run_date=date(2026, 4, 24),
-            datasets=datasets,
-        )
-    )
-
-    assert results == {"transactions": 0, "volume": 3}
-    assert sb.upserts[1]["payload"]["last_error"] == "RuntimeError: source unavailable"
-
-
-def test_sync_all_cmf_monthly_datasets_once_runs_both_datasets():
-    datasets = [
-        _dataset("transactions", date(2026, 4, 1), rows_synced=2),
-        _dataset("volume", date(2026, 4, 1), rows_synced=3),
+def test_sync_all_bank_credit_card_ops_once_continues_after_one_operation_failure(monkeypatch):
+    configs = [
+        _config(BANK_CREDIT_CARD_OPS_COMPRAS_DATASET, "Compras"),
+        _config(BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET, "Avance en Efectivo"),
     ]
     sb = FakeSupabase()
 
+    async def fake_sync_operation_once(_client, _sb, *, config, run_date):
+        if config.dataset_code == BANK_CREDIT_CARD_OPS_COMPRAS_DATASET:
+            raise RuntimeError("source unavailable")
+        return 3
+
+    monkeypatch.setattr(
+        "data.workers.bank_credit_card_ops_worker.sync_operation_once",
+        fake_sync_operation_once,
+    )
+
     results = asyncio.run(
-        sync_all_cmf_monthly_datasets_once(
+        sync_all_bank_credit_card_ops_once(
             None,
             sb,
-            config=CmfMonthlyWorkerConfig(
+            config=BankCreditCardOpsWorkerConfig(
                 supabase_url="https://supabase.example",
                 supabase_service_role_key="service-role",
                 endpoint_base="https://cmf.example",
             ),
             run_date=date(2026, 4, 24),
-            datasets=datasets,
+            operations=configs,
         )
     )
 
-    assert results == {"transactions": 2, "volume": 3}
-
-
-def test_active_monthly_datasets_includes_transaction_and_purchase_volume():
-    dataset_codes = {dataset.dataset_code for dataset in active_monthly_datasets()}
-
-    assert dataset_codes == {
-        "bank_credit_card_transaction_count",
-        "bank_credit_card_purchase_volume",
+    assert results == {
+        BANK_CREDIT_CARD_OPS_COMPRAS_DATASET: 0,
+        BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET: 3,
     }

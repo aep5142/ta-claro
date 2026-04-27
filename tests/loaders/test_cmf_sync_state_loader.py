@@ -1,12 +1,12 @@
-from datetime import datetime
 from datetime import date
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from data.loaders.cmf_sync_state_loader import (
+from data.loaders.bank_credit_card_ops_sync_state_loader import (
     get_latest_state_source_month,
-    record_cmf_sync_attempt,
-    record_cmf_sync_failure,
-    record_cmf_sync_success,
+    record_sync_attempt,
+    record_sync_failure,
+    record_sync_success,
 )
 
 
@@ -79,28 +79,28 @@ def test_get_latest_state_source_month_reads_existing_state():
     assert get_latest_state_source_month(sb, "dataset") == date(2026, 4, 1)
 
 
-def test_record_cmf_sync_attempt_writes_attempt_timestamp(monkeypatch):
+def test_record_sync_attempt_writes_attempt_timestamp(monkeypatch):
     sb = FakeSupabase()
 
     fixed_now = datetime(2026, 4, 24, 12, 34, 56, tzinfo=ZoneInfo("America/Santiago"))
-    import data.loaders.cmf_sync_state_loader as cmf_sync_state_loader
+    import data.loaders.bank_credit_card_ops_sync_state_loader as sync_state_loader
 
-    monkeypatch.setattr(cmf_sync_state_loader, "now_santiago", lambda: fixed_now)
-    record_cmf_sync_attempt(sb, "dataset")
+    monkeypatch.setattr(sync_state_loader, "now_santiago", lambda: fixed_now)
+    record_sync_attempt(sb, "dataset")
 
-    assert sb.upserts[0]["table"] == "cmf_dataset_sync_state"
+    assert sb.upserts[0]["table"] == "bank_credit_card_ops_sync_state"
     assert sb.upserts[0]["payload"]["dataset_code"] == "dataset"
     assert sb.upserts[0]["payload"]["last_attempted_sync_at"] == fixed_now.isoformat()
 
 
-def test_record_cmf_sync_success_advances_source_and_curated_months(monkeypatch):
+def test_record_sync_success_advances_source_and_curated_months(monkeypatch):
     sb = FakeSupabase()
 
     fixed_now = datetime(2026, 4, 24, 12, 34, 56, tzinfo=ZoneInfo("America/Santiago"))
-    import data.loaders.cmf_sync_state_loader as cmf_sync_state_loader
+    import data.loaders.bank_credit_card_ops_sync_state_loader as sync_state_loader
 
-    monkeypatch.setattr(cmf_sync_state_loader, "now_santiago", lambda: fixed_now)
-    record_cmf_sync_success(
+    monkeypatch.setattr(sync_state_loader, "now_santiago", lambda: fixed_now)
+    record_sync_success(
         sb,
         dataset_code="dataset",
         latest_source_month=date(2026, 4, 1),
@@ -113,14 +113,14 @@ def test_record_cmf_sync_success_advances_source_and_curated_months(monkeypatch)
     assert sb.upserts[0]["payload"]["last_successful_sync_at"] == fixed_now.isoformat()
 
 
-def test_record_cmf_sync_failure_records_error_without_advancing_months(monkeypatch):
+def test_record_sync_failure_records_error_without_advancing_months(monkeypatch):
     sb = FakeSupabase()
 
     fixed_now = datetime(2026, 4, 24, 12, 34, 56, tzinfo=ZoneInfo("America/Santiago"))
-    import data.loaders.cmf_sync_state_loader as cmf_sync_state_loader
+    import data.loaders.bank_credit_card_ops_sync_state_loader as sync_state_loader
 
-    monkeypatch.setattr(cmf_sync_state_loader, "now_santiago", lambda: fixed_now)
-    record_cmf_sync_failure(
+    monkeypatch.setattr(sync_state_loader, "now_santiago", lambda: fixed_now)
+    record_sync_failure(
         sb,
         dataset_code="dataset",
         error=ValueError("boom"),
