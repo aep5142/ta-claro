@@ -20,7 +20,7 @@ from data.loaders.bank_credit_card_ops_sync_state_loader import (
     record_sync_success,
 )
 from data.models.bank_credit_card_operations import (
-    BANK_CREDIT_CARD_OPS_REGISTRY_TABLE,
+    CMF_DATASETS_TABLE,
     BankCreditCardOperationConfig,
     BankCreditCardOpsRawObservation,
 )
@@ -51,10 +51,11 @@ def load_config() -> BankCreditCardOpsWorkerConfig:
 
 def load_active_operation_configs(sb) -> list[BankCreditCardOperationConfig]:
     response = (
-        sb.table(BANK_CREDIT_CARD_OPS_REGISTRY_TABLE)
+        sb.table(CMF_DATASETS_TABLE)
         .select(
             "operation_type,dataset_code,transaction_count_source_tag,nominal_volume_source_tag,"
-            "source_nombre,source_description,source_endpoint_base,refresh_frequency,start_date,is_active"
+            "source_tag,source_nombre,source_description,source_endpoint_base,"
+            "refresh_frequency,start_date,is_active"
         )
         .eq("is_active", True)
         .execute()
@@ -63,6 +64,9 @@ def load_active_operation_configs(sb) -> list[BankCreditCardOperationConfig]:
     return [
         BankCreditCardOperationConfig.from_row(row)
         for row in (response.data or [])
+        if row.get("operation_type")
+        and row.get("transaction_count_source_tag")
+        and row.get("nominal_volume_source_tag")
     ]
 
 

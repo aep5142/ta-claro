@@ -124,7 +124,7 @@ def _curated_observation():
         uf_date_used=date(2026, 4, 15),
         uf_value_used=Decimal("40000"),
         real_value_uf=Decimal("3.01268345"),
-        average_ticket_uf=Decimal("0.00120507338"),
+        average_ticket_uf=Decimal("75317.08625"),
         source_dataset_code=BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
     )
 
@@ -174,4 +174,4 @@ def test_upsert_bank_credit_card_ops_curated_uses_idempotent_conflict_key():
     assert sb.upserts[0]["kwargs"] == {
         "on_conflict": "dataset_code,institution_code,period_month"
     }
-    assert sb.upserts[0]["payload"][0]["average_ticket_uf"] == "0.00120507338"
+    assert sb.upserts[0]["payload"][0]["average_ticket_uf"] == "75317.08625"

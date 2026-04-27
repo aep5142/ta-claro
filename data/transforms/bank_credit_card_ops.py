@@ -26,7 +26,7 @@ def to_curated_bank_credit_card_ops(
             observation.nominal_volume_millions_clp / Decimal("1000")
         )
         real_value_uf = nominal_volume_thousands_millions_clp / uf_value
-        average_ticket_uf = real_value_uf / observation.transaction_count
+        average_ticket_uf = (real_value_uf / uf_value) * Decimal("1000000000")
         curated_observations.append(
             BankCreditCardOpsCuratedObservation(
                 operation_type=observation.operation_type,

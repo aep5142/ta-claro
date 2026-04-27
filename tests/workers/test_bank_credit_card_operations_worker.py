@@ -61,16 +61,16 @@ class FakeTable:
             )
             return FakeResponse()
 
-        if self.name == "bank_credit_card_ops_registry":
+        if self.name == "cmf_datasets":
             return FakeResponse(
                 [
                     row
-                    for row in self.db["registry"]
+                    for row in self.db["datasets"]
                     if self._eq_filter is None or row[self._eq_filter[0]] == self._eq_filter[1]
                 ]
             )
 
-        if self.name == "bank_credit_card_ops_sync_state":
+        if self.name == "cmf_dataset_sync_state":
             return FakeResponse(self.db["states"].get(self._eq_filter[1], []))
 
         if self.name == "uf_values":
@@ -80,9 +80,9 @@ class FakeTable:
 
 
 class FakeSupabase:
-    def __init__(self, registry=None, states=None, uf_values=None):
+    def __init__(self, datasets=None, states=None, uf_values=None):
         self.db = {
-            "registry": registry or [],
+            "datasets": datasets or [],
             "states": states or {},
             "uf_values": uf_values or {},
             "upserts": [],
@@ -136,7 +136,7 @@ def _batch(dataset_code: str, operation_type: str, period_month: date, rows_sync
 
 def test_load_active_operation_configs_reads_registry_rows():
     sb = FakeSupabase(
-        registry=[
+        datasets=[
             {
                 "operation_type": "Compras",
                 "dataset_code": BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
@@ -230,8 +230,8 @@ def test_sync_operation_once_syncs_newer_source_and_advances_state(monkeypatch):
     assert sb.upserts[1]["table"] == "bank_credit_card_ops_raw"
     assert sb.upserts[1]["payload"][0]["transaction_count"] == "2500"
     assert sb.upserts[2]["table"] == "bank_credit_card_ops_curated"
-    assert sb.upserts[2]["payload"][0]["average_ticket_uf"] == "0.00120507338"
-    assert sb.upserts[3]["table"] == "bank_credit_card_ops_sync_state"
+    assert sb.upserts[2]["payload"][0]["average_ticket_uf"] == "75317.08625000000000"
+    assert sb.upserts[3]["table"] == "cmf_dataset_sync_state"
     assert sb.upserts[3]["payload"]["latest_source_month"] == "2026-04-01"
     assert sb.upserts[3]["payload"]["latest_curated_month"] == "2026-04-01"
     assert sb.upserts[3]["payload"]["last_error"] is None

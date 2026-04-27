@@ -234,9 +234,10 @@ This is the next backend cleanup pass after the current working ETL state.
 
 ### Key Changes
 
-- Rename the public metrics view to `bank_credit_card_ops_metrics`.
-- Roll back the purchase-only split and store all credit-card operations in the unified `bank_credit_card_ops_*` tables.
-- Keep `average_ticket_uf` stored and compute `average_ticket_clp_today` at query time.
+- Keep `cmf_datasets` and `cmf_dataset_sync_state` as the shared orchestration tables for all CMF datasets.
+- Keep all credit-card operations in the unified `bank_credit_card_ops_*` raw/curated tables.
+- Keep `bank_credit_card_ops_metrics` as a view only.
+- Keep `average_ticket_uf` stored in curated data and compute `average_ticket_clp_today` at query time.
 - Simplify the metrics views so the read surface is not duplicated.
 - Standardize the operations volume units so raw storage is in millions of CLP and curated storage is in thousands of millions of CLP by dividing raw values by `1000`.
 - Standardize all stored timestamps to Santiago de Chile time, including ETL-written timestamps and SQL defaults.

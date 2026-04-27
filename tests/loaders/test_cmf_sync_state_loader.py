@@ -88,7 +88,7 @@ def test_record_sync_attempt_writes_attempt_timestamp(monkeypatch):
     monkeypatch.setattr(sync_state_loader, "now_santiago", lambda: fixed_now)
     record_sync_attempt(sb, "dataset")
 
-    assert sb.upserts[0]["table"] == "bank_credit_card_ops_sync_state"
+    assert sb.upserts[0]["table"] == "cmf_dataset_sync_state"
     assert sb.upserts[0]["payload"]["dataset_code"] == "dataset"
     assert sb.upserts[0]["payload"]["last_attempted_sync_at"] == fixed_now.isoformat()
 

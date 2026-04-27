@@ -143,8 +143,8 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - `Compras`
   - `Avance en Efectivo`
   - `Cargos por Servicio`
-- Registry/config rows live in `public.bank_credit_card_ops_registry`.
-- Sync state lives in `public.bank_credit_card_ops_sync_state`.
+- Registry/config rows live in `public.cmf_datasets`.
+- Sync state lives in `public.cmf_dataset_sync_state`.
 - Raw monthly observations live in `public.bank_credit_card_ops_raw`.
 - Curated monthly observations live in `public.bank_credit_card_ops_curated`.
 - The public read surface is `public.bank_credit_card_ops_metrics`.
@@ -165,8 +165,8 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 
 - Phase 1 added initial CMF database SQL in `db/001_cmf_foundation.sql`.
 - The ops foundation SQL defines:
-  - `public.bank_credit_card_ops_registry`
-  - `public.bank_credit_card_ops_sync_state`
+  - `public.cmf_datasets`
+  - `public.cmf_dataset_sync_state`
   - `public.bank_credit_card_ops_raw`
   - `public.bank_credit_card_ops_curated`
 - The public read surface lives in `db/003_bank_credit_card_ops_views.sql`.
@@ -329,4 +329,4 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Finalize test coverage for the v1 path.
 - The current production read surface is the unified `public.bank_credit_card_ops_metrics` view over `public.bank_credit_card_ops_curated`.
 - UF sync failures now persist `last_error` in `public.uf_sync_runs`.
-- Ops sync failures now persist `last_error` in `public.bank_credit_card_ops_sync_state`, and the worker continues other operations when one fails.
+- Ops sync failures now persist `last_error` in `public.cmf_dataset_sync_state`, and the worker continues other operations when one fails.

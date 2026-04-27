@@ -1,8 +1,6 @@
-drop view if exists public.bank_credit_card_ops_metrics;
-
 create or replace view public.bank_credit_card_ops_metrics as
 with latest_uf as (
-    select uf_date, value as latest_uf_value
+    select value as latest_uf_value
     from public.uf_values
     order by uf_date desc
     limit 1
@@ -27,4 +25,4 @@ from public.bank_credit_card_ops_curated as curated
 left join latest_uf on true;
 
 comment on view public.bank_credit_card_ops_metrics
-    is 'Public bank credit-card metrics view over the unified operations curated table.';
+    is 'Public bank credit-card metrics view over the curated operations table.';

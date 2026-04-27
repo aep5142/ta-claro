@@ -4,8 +4,8 @@ from decimal import Decimal
 from typing import Any
 
 
-BANK_CREDIT_CARD_OPS_REGISTRY_TABLE = "bank_credit_card_ops_registry"
-BANK_CREDIT_CARD_OPS_SYNC_STATE_TABLE = "bank_credit_card_ops_sync_state"
+CMF_DATASETS_TABLE = "cmf_datasets"
+CMF_DATASET_SYNC_STATE_TABLE = "cmf_dataset_sync_state"
 BANK_CREDIT_CARD_OPS_RAW_TABLE = "bank_credit_card_ops_raw"
 BANK_CREDIT_CARD_OPS_CURATED_TABLE = "bank_credit_card_ops_curated"
 BANK_CREDIT_CARD_OPS_METRICS_VIEW = "bank_credit_card_ops_metrics"
@@ -25,7 +25,6 @@ BANK_CREDIT_CARD_OPERATION_TYPES = (
 )
 
 CMF_CARDS_START_DATE = "20090401"
-CMF_CARD_SERVICE_CHARGES_START_DATE = "20250101"
 
 
 @dataclass(frozen=True)
@@ -40,6 +39,7 @@ class BankCreditCardOperationConfig:
     refresh_frequency: str
     start_date: date
     is_active: bool = True
+    source_tag: str | None = None
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> "BankCreditCardOperationConfig":
@@ -48,6 +48,7 @@ class BankCreditCardOperationConfig:
             dataset_code=row["dataset_code"],
             transaction_count_source_tag=row["transaction_count_source_tag"],
             nominal_volume_source_tag=row["nominal_volume_source_tag"],
+            source_tag=row.get("source_tag"),
             source_nombre=row["source_nombre"],
             source_description=row["source_description"],
             source_endpoint_base=row["source_endpoint_base"],
@@ -56,12 +57,13 @@ class BankCreditCardOperationConfig:
             is_active=bool(row.get("is_active", True)),
         )
 
-    def to_registry_row(self) -> dict[str, Any]:
+    def to_dataset_row(self) -> dict[str, Any]:
         return {
             "operation_type": self.operation_type,
             "dataset_code": self.dataset_code,
             "transaction_count_source_tag": self.transaction_count_source_tag,
             "nominal_volume_source_tag": self.nominal_volume_source_tag,
+            "source_tag": self.source_tag,
             "source_nombre": self.source_nombre,
             "source_description": self.source_description,
             "source_endpoint_base": self.source_endpoint_base,
@@ -69,6 +71,9 @@ class BankCreditCardOperationConfig:
             "start_date": self.start_date.isoformat(),
             "is_active": self.is_active,
         }
+
+    def to_registry_row(self) -> dict[str, Any]:
+        return self.to_dataset_row()
 
 
 @dataclass(frozen=True)

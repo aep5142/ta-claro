@@ -2,12 +2,10 @@ from datetime import date
 
 from shared.time import now_santiago
 
-from data.models.bank_credit_card_operations import BANK_CREDIT_CARD_OPS_SYNC_STATE_TABLE
-
 
 def get_latest_state_source_month(sb, dataset_code: str) -> date | None:
     response = (
-        sb.table(BANK_CREDIT_CARD_OPS_SYNC_STATE_TABLE)
+        sb.table("cmf_dataset_sync_state")
         .select("latest_source_month")
         .eq("dataset_code", dataset_code)
         .limit(1)
@@ -22,7 +20,7 @@ def get_latest_state_source_month(sb, dataset_code: str) -> date | None:
 
 def record_sync_attempt(sb, dataset_code: str):
     return (
-        sb.table(BANK_CREDIT_CARD_OPS_SYNC_STATE_TABLE)
+        sb.table("cmf_dataset_sync_state")
         .upsert(
             {
                 "dataset_code": dataset_code,
@@ -42,7 +40,7 @@ def record_sync_success(
     latest_curated_month: date,
 ):
     return (
-        sb.table(BANK_CREDIT_CARD_OPS_SYNC_STATE_TABLE)
+        sb.table("cmf_dataset_sync_state")
         .upsert(
             {
                 "dataset_code": dataset_code,
@@ -60,7 +58,7 @@ def record_sync_success(
 
 def record_sync_failure(sb, *, dataset_code: str, error: Exception):
     return (
-        sb.table(BANK_CREDIT_CARD_OPS_SYNC_STATE_TABLE)
+        sb.table("cmf_dataset_sync_state")
         .upsert(
             {
                 "dataset_code": dataset_code,
