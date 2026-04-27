@@ -1,8 +1,0 @@
-import asyncio
-
-from data.workers.bank_credit_card_ops_worker import run_worker
-
-
-# Compatibility shim for existing deployment commands. Prefer data/bank_credit_card_ops.py.
-if __name__ == "__main__":
-    asyncio.run(run_worker())
