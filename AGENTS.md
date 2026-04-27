@@ -255,6 +255,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - `data/loaders/bank_credit_card_ops_loader.py`
   - `data/loaders/bank_credit_card_ops_sync_state_loader.py`
   - `data/transforms/bank_credit_card_ops.py`
+- Active card test coverage follows the unified ops naming; old split-CMF tests and fixtures have been removed from the active `tests/` tree.
 - Empty structural directories are tracked with `.gitkeep` placeholders.
 
 # Planned Testing Structure
