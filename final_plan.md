@@ -234,7 +234,7 @@ This is the next backend cleanup pass after the current working ETL state.
 
 ### Key Changes
 
-- Rename `cmf_card_monthly_metrics` to `bank_credit_card_purchases`.
+- Rename `cmf_card_monthly_metrics` to `bank_credit_card_purchase`.
 - Remove `latest_uf_value` from the public demo surface.
 - Keep `average_ticket_clp_today` as the day-sensitive derived metric.
 - Simplify the metrics views so the read surface is not duplicated.

@@ -6,12 +6,12 @@ import pytest
 from data.loaders.cmf_purchase_volume_loader import (
     get_uf_value_for_date,
     latest_curated_purchase_volume_month,
-    refresh_bank_credit_card_purchases_metrics,
+    refresh_bank_credit_card_purchase_metrics,
     upsert_purchase_volume_curated,
     upsert_purchase_volume_raw,
 )
 from data.models.bank_credit_card_operations import (
-    BANK_CREDIT_CARD_PURCHASES_METRICS_TABLE,
+    BANK_CREDIT_CARD_PURCHASE_METRICS_TABLE,
     BANK_CREDIT_CARD_PURCHASE_VOLUME_DATASET,
     BANK_CREDIT_CARD_PURCHASE_VOLUME_CURATED_TABLE,
     BANK_CREDIT_CARD_PURCHASE_VOLUME_RAW_TABLE,
@@ -176,7 +176,7 @@ def test_upsert_purchase_volume_curated_uses_idempotent_conflict_key():
     assert sb.upserts[0]["payload"][0]["real_volume_uf"] == "100000"
 
 
-def test_refresh_bank_credit_card_purchases_metrics_upserts_joined_rows():
+def test_refresh_bank_credit_card_purchase_metrics_upserts_joined_rows():
     sb = FakeSupabase(
         purchase_volume_curated=[
             {
@@ -201,9 +201,9 @@ def test_refresh_bank_credit_card_purchases_metrics_upserts_joined_rows():
         ],
     )
 
-    refresh_bank_credit_card_purchases_metrics(sb)
+    refresh_bank_credit_card_purchase_metrics(sb)
 
-    assert sb.upserts[0]["table"] == BANK_CREDIT_CARD_PURCHASES_METRICS_TABLE
+    assert sb.upserts[0]["table"] == BANK_CREDIT_CARD_PURCHASE_METRICS_TABLE
     assert sb.upserts[0]["kwargs"] == {
         "on_conflict": "institution_code,period_month"
     }

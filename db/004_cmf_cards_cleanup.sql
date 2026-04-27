@@ -24,7 +24,7 @@ drop view if exists public.cmf_card_monthly_demo_metrics;
 drop view if exists public.cmf_latest_uf;
 drop view if exists public.cmf_card_monthly_metrics;
 
-create table if not exists public.bank_credit_card_purchases_metrics (
+create table if not exists public.bank_credit_card_purchase_metrics (
     institution_code text not null,
     institution_name text not null,
     period_month date not null,
@@ -42,8 +42,8 @@ create table if not exists public.bank_credit_card_purchases_metrics (
     primary key (institution_code, period_month)
 );
 
-create index if not exists bank_credit_card_purchases_metrics_period_idx
-    on public.bank_credit_card_purchases_metrics (period_month);
+create index if not exists bank_credit_card_purchase_metrics_period_idx
+    on public.bank_credit_card_purchase_metrics (period_month);
 
 comment on table public.bank_credit_card_purchase_volume_raw
     is 'Raw bank credit-card purchase volume in millions of CLP.';
@@ -57,17 +57,17 @@ comment on table public.bank_credit_card_purchase_volume_curated
 comment on column public.bank_credit_card_purchase_volume_curated.nominal_volume_thousands_millions_clp
     is 'Curated monthly purchase volume, expressed in thousands of millions of CLP.';
 
-comment on table public.bank_credit_card_purchases_metrics
+comment on table public.bank_credit_card_purchase_metrics
     is 'Stored joined card metrics with average ticket in UF.';
 
-comment on column public.bank_credit_card_purchases_metrics.average_ticket_uf
+comment on column public.bank_credit_card_purchase_metrics.average_ticket_uf
     is 'Average ticket per transaction, expressed in UF.';
 
 update public.cmf_datasets
 set source_unit = 'millions CLP'
 where dataset_code = 'bank_credit_card_purchase_volume';
 
-create or replace view public.bank_credit_card_purchases as
+create or replace view public.bank_credit_card_purchase as
 with latest_uf as (
     select value as latest_uf_value
     from public.uf_values
@@ -91,5 +91,5 @@ select
         when latest_uf.latest_uf_value is null then null
         else metrics.average_ticket_uf * latest_uf.latest_uf_value
     end as average_ticket_clp_today
-from public.bank_credit_card_purchases_metrics as metrics
+from public.bank_credit_card_purchase_metrics as metrics
 left join latest_uf on true;

@@ -12,7 +12,7 @@ BANK_CREDIT_CARD_TRANSACTION_COUNT_RAW_TABLE = "bank_credit_card_transaction_cou
 BANK_CREDIT_CARD_TRANSACTION_COUNT_CURATED_TABLE = "bank_credit_card_transaction_count_curated"
 BANK_CREDIT_CARD_PURCHASE_VOLUME_RAW_TABLE = "bank_credit_card_purchase_volume_raw"
 BANK_CREDIT_CARD_PURCHASE_VOLUME_CURATED_TABLE = "bank_credit_card_purchase_volume_curated"
-BANK_CREDIT_CARD_PURCHASES_METRICS_TABLE = "bank_credit_card_purchases_metrics"
+BANK_CREDIT_CARD_PURCHASE_METRICS_TABLE = "bank_credit_card_purchase_metrics"
 CMF_CARDS_START_DATE = "20090401"
 
 

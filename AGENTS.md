@@ -191,7 +191,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - runs the dataset-specific one-shot sync when the source month is newer
   - records success only after the dataset-specific sync succeeds
   - records failure without advancing source or curated month state
-- After successful dataset syncs, the shared worker refreshes the stored `public.bank_credit_card_purchases_metrics` table.
+- After successful dataset syncs, the shared worker refreshes the stored `public.bank_credit_card_purchase_metrics` table.
 - Shared CMF state remains separate from UF state.
 
 # Current CMF Schema Assets
@@ -205,11 +205,11 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - `public.bank_credit_card_transaction_count_curated`
   - `public.bank_credit_card_purchase_volume_raw`
   - `public.bank_credit_card_purchase_volume_curated`
-  - `public.bank_credit_card_purchases_metrics`
+  - `public.bank_credit_card_purchase_metrics`
 - `public.cmf_datasets` stores the initial active bank credit-card purchase-volume and transaction-count dataset metadata.
 - CMF sync state is separate from UF sync state.
 - CMF curated tables use `institution_code` plus `period_month` as the primary analytical grain for each dataset.
-- The public card read surface is `public.bank_credit_card_purchases`, which exposes `average_ticket_uf` from the stored metrics table and computes `average_ticket_clp_today` at query time.
+- The public card read surface is `public.bank_credit_card_purchase`, which exposes `average_ticket_uf` from the stored metrics table and computes `average_ticket_clp_today` at query time.
 
 # UF Operational Direction
 
@@ -364,6 +364,6 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Add joined DB view(s) for downstream reads.
 - Add operational logging/error-hardening.
 - Finalize test coverage for the v1 path.
-- `db/004_cmf_cards_cleanup.sql` defines the renamed card tables, the stored `public.bank_credit_card_purchases_metrics` table, and the simplified public `public.bank_credit_card_purchases` view.
+- `db/005_cmf_card_purchase_name_fix.sql` defines the singular `public.bank_credit_card_purchase_metrics` table and `public.bank_credit_card_purchase` view.
 - UF sync failures now persist `last_error` in `public.uf_sync_runs`.
 - CMF monthly sync failures now persist `last_error` in `public.cmf_dataset_sync_state`, and the shared worker continues other datasets when one fails.

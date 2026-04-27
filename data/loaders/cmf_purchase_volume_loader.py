@@ -4,7 +4,7 @@ from decimal import Decimal
 from data.models.bank_credit_card_operations import (
     BANK_CREDIT_CARD_PURCHASE_VOLUME_CURATED_TABLE,
     BANK_CREDIT_CARD_PURCHASE_VOLUME_RAW_TABLE,
-    BANK_CREDIT_CARD_PURCHASES_METRICS_TABLE,
+    BANK_CREDIT_CARD_PURCHASE_METRICS_TABLE,
     BANK_CREDIT_CARD_TRANSACTION_COUNT_CURATED_TABLE,
     CmfPurchaseVolumeCuratedObservation,
     CmfPurchaseVolumeRawObservation,
@@ -108,7 +108,7 @@ def _parse_transaction_count_rows(rows: list[dict]) -> list[CmfTransactionCountC
     ]
 
 
-def refresh_bank_credit_card_purchases_metrics(sb):
+def refresh_bank_credit_card_purchase_metrics(sb):
     purchase_volume_response = (
         sb.table(BANK_CREDIT_CARD_PURCHASE_VOLUME_CURATED_TABLE)
         .select(
@@ -132,7 +132,7 @@ def refresh_bank_credit_card_purchases_metrics(sb):
         return None
 
     return (
-        sb.table(BANK_CREDIT_CARD_PURCHASES_METRICS_TABLE)
+        sb.table(BANK_CREDIT_CARD_PURCHASE_METRICS_TABLE)
         .upsert(
             [observation.to_row() for observation in metrics],
             on_conflict="institution_code,period_month",
