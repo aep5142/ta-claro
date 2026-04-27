@@ -9,10 +9,30 @@ CMF_DATASET_SYNC_STATE_TABLE = "cmf_dataset_sync_state"
 BANK_CREDIT_CARD_OPS_RAW_TABLE = "bank_credit_card_ops_raw"
 BANK_CREDIT_CARD_OPS_CURATED_TABLE = "bank_credit_card_ops_curated"
 BANK_CREDIT_CARD_OPS_METRICS_VIEW = "bank_credit_card_ops_metrics"
+CMF_MEASURE_KIND_TRANSACTION_COUNT = "transaction_count"
+CMF_MEASURE_KIND_NOMINAL_VOLUME = "nominal_volume"
 
 BANK_CREDIT_CARD_OPS_COMPRAS_DATASET = "bank_credit_card_ops_compras"
 BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET = "bank_credit_card_ops_avance_en_efectivo"
 BANK_CREDIT_CARD_OPS_CARGOS_POR_SERVICIO_DATASET = "bank_credit_card_ops_cargos_por_servicio"
+BANK_CREDIT_CARD_OPS_COMPRAS_TRANSACTION_COUNT_DATASET = (
+    "bank_credit_card_ops_compras_transaction_count"
+)
+BANK_CREDIT_CARD_OPS_COMPRAS_NOMINAL_VOLUME_DATASET = (
+    "bank_credit_card_ops_compras_nominal_volume"
+)
+BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_TRANSACTION_COUNT_DATASET = (
+    "bank_credit_card_ops_avance_en_efectivo_transaction_count"
+)
+BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_NOMINAL_VOLUME_DATASET = (
+    "bank_credit_card_ops_avance_en_efectivo_nominal_volume"
+)
+BANK_CREDIT_CARD_OPS_CARGOS_POR_SERVICIO_TRANSACTION_COUNT_DATASET = (
+    "bank_credit_card_ops_cargos_por_servicio_transaction_count"
+)
+BANK_CREDIT_CARD_OPS_CARGOS_POR_SERVICIO_NOMINAL_VOLUME_DATASET = (
+    "bank_credit_card_ops_cargos_por_servicio_nominal_volume"
+)
 
 BANK_CREDIT_CARD_OPERATION_COMPRAS = "Compras"
 BANK_CREDIT_CARD_OPERATION_AVANCE_EN_EFECTIVO = "Avance en Efectivo"
@@ -28,27 +48,25 @@ CMF_CARDS_START_DATE = "20090401"
 
 
 @dataclass(frozen=True)
-class BankCreditCardOperationConfig:
+class BankCreditCardEndpointConfig:
     operation_type: str
     dataset_code: str
-    transaction_count_source_tag: str
-    nominal_volume_source_tag: str
+    measure_kind: str
+    source_tag: str
     source_nombre: str
     source_description: str
     source_endpoint_base: str
     refresh_frequency: str
     start_date: date
     is_active: bool = True
-    source_tag: str | None = None
 
     @classmethod
-    def from_row(cls, row: dict[str, Any]) -> "BankCreditCardOperationConfig":
+    def from_row(cls, row: dict[str, Any]) -> "BankCreditCardEndpointConfig":
         return cls(
             operation_type=row["operation_type"],
             dataset_code=row["dataset_code"],
-            transaction_count_source_tag=row["transaction_count_source_tag"],
-            nominal_volume_source_tag=row["nominal_volume_source_tag"],
-            source_tag=row.get("source_tag"),
+            measure_kind=row["measure_kind"],
+            source_tag=row["source_tag"],
             source_nombre=row["source_nombre"],
             source_description=row["source_description"],
             source_endpoint_base=row["source_endpoint_base"],
@@ -61,8 +79,7 @@ class BankCreditCardOperationConfig:
         return {
             "operation_type": self.operation_type,
             "dataset_code": self.dataset_code,
-            "transaction_count_source_tag": self.transaction_count_source_tag,
-            "nominal_volume_source_tag": self.nominal_volume_source_tag,
+            "measure_kind": self.measure_kind,
             "source_tag": self.source_tag,
             "source_nombre": self.source_nombre,
             "source_description": self.source_description,
@@ -74,6 +91,21 @@ class BankCreditCardOperationConfig:
 
     def to_registry_row(self) -> dict[str, Any]:
         return self.to_dataset_row()
+
+
+@dataclass(frozen=True)
+class BankCreditCardOperationConfig:
+    operation_type: str
+    dataset_code: str
+    transaction_count_dataset_code: str
+    nominal_volume_dataset_code: str
+    transaction_count_source_tag: str
+    nominal_volume_source_tag: str
+    source_nombre: str
+    source_description: str
+    source_endpoint_base: str
+    refresh_frequency: str
+    start_date: date
 
 
 @dataclass(frozen=True)

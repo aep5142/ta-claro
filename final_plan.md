@@ -235,6 +235,7 @@ This is the next backend cleanup pass after the current working ETL state.
 ### Key Changes
 
 - Keep `cmf_datasets` and `cmf_dataset_sync_state` as the shared orchestration tables for all CMF datasets.
+- Keep CMF dataset metadata endpoint-grained when multiple source tags feed one unified analytical table.
 - Keep all credit-card operations in the unified `bank_credit_card_ops_*` raw/curated tables.
 - Keep `bank_credit_card_ops_metrics` as a view only.
 - Keep `average_ticket_uf` stored in curated data.

@@ -4,9 +4,8 @@
 create table if not exists public.cmf_datasets (
     dataset_code text primary key,
     operation_type text,
+    measure_kind text,
     source_tag text not null,
-    transaction_count_source_tag text,
-    nominal_volume_source_tag text,
     source_nombre text not null,
     source_description text not null,
     source_endpoint_base text not null,
@@ -30,7 +29,7 @@ create table if not exists public.cmf_dataset_sync_state (
 
 create table if not exists public.bank_credit_card_ops_raw (
     operation_type text not null,
-    dataset_code text not null references public.cmf_datasets(dataset_code),
+    dataset_code text not null,
     source_series_id text not null,
     source_codigo text not null,
     source_nombre text not null,
@@ -46,7 +45,7 @@ create table if not exists public.bank_credit_card_ops_raw (
 
 create table if not exists public.bank_credit_card_ops_curated (
     operation_type text not null,
-    dataset_code text not null references public.cmf_datasets(dataset_code),
+    dataset_code text not null,
     institution_code text not null,
     institution_name text not null,
     period_month date not null,
@@ -56,7 +55,7 @@ create table if not exists public.bank_credit_card_ops_curated (
     uf_value_used numeric not null,
     real_value_uf numeric not null,
     average_ticket_uf numeric not null,
-    source_dataset_code text not null references public.cmf_datasets(dataset_code),
+    source_dataset_code text not null,
     updated_at timestamptz not null default now(),
     primary key (dataset_code, institution_code, period_month)
 );
@@ -85,9 +84,8 @@ comment on column public.bank_credit_card_ops_curated.real_value_uf
 insert into public.cmf_datasets (
     dataset_code,
     operation_type,
+    measure_kind,
     source_tag,
-    transaction_count_source_tag,
-    nominal_volume_source_tag,
     source_nombre,
     source_description,
     source_endpoint_base,
@@ -97,52 +95,87 @@ insert into public.cmf_datasets (
     is_active
 ) values
     (
-        'bank_credit_card_ops_compras',
+        'bank_credit_card_ops_compras_transaction_count',
         'Compras',
-        'SBIF_TCRED_BANC_COMP_AGIFI',
+        'transaction_count',
         'SBIF_TCRED_BANC_COMP_AGIFI_NUM',
+        'Compras con tarjetas de credito bancarias por institucion',
+        'Monthly bank credit card purchase transaction counts by institution from CMF Cuadrosv2.',
+        'https://best-sbif-api.azurewebsites.net/Cuadrosv2',
+        'monthly',
+        'count',
+        date '2009-04-01',
+        true
+    ),
+    (
+        'bank_credit_card_ops_compras_nominal_volume',
+        'Compras',
+        'nominal_volume',
         'SBIF_TCRED_BANC_COMP_AGIFI_$',
         'Compras con tarjetas de credito bancarias por institucion',
-        'Monthly bank credit card purchases by institution from CMF Cuadrosv2.',
+        'Monthly bank credit card purchase nominal volume by institution from CMF Cuadrosv2.',
         'https://best-sbif-api.azurewebsites.net/Cuadrosv2',
         'monthly',
-        'combined',
+        'millions_clp',
         date '2009-04-01',
         true
     ),
     (
-        'bank_credit_card_ops_avance_en_efectivo',
+        'bank_credit_card_ops_avance_en_efectivo_transaction_count',
         'Avance en Efectivo',
-        'SBIF_TCRED_BANC_AVEF_AGIFI',
+        'transaction_count',
         'SBIF_TCRED_BANC_AVEF_AGIFI_NUM',
+        'Avance en efectivo con tarjetas de credito bancarias por institucion',
+        'Monthly bank credit card cash advance transaction counts by institution from CMF Cuadrosv2.',
+        'https://best-sbif-api.azurewebsites.net/Cuadrosv2',
+        'monthly',
+        'count',
+        date '2009-04-01',
+        true
+    ),
+    (
+        'bank_credit_card_ops_avance_en_efectivo_nominal_volume',
+        'Avance en Efectivo',
+        'nominal_volume',
         'SBIF_TCRED_BANC_AVEF_AGIFI_$',
         'Avance en efectivo con tarjetas de credito bancarias por institucion',
-        'Monthly bank credit card cash advances by institution from CMF Cuadrosv2.',
+        'Monthly bank credit card cash advance nominal volume by institution from CMF Cuadrosv2.',
         'https://best-sbif-api.azurewebsites.net/Cuadrosv2',
         'monthly',
-        'combined',
+        'millions_clp',
         date '2009-04-01',
         true
     ),
     (
-        'bank_credit_card_ops_cargos_por_servicio',
+        'bank_credit_card_ops_cargos_por_servicio_transaction_count',
         'Cargos por Servicio',
-        'SBIF_TCRED_BANC_CSERV_AGIFI',
+        'transaction_count',
         'SBIF_TCRED_BANC_CSERV_AGIFI_NUM',
-        'SBIF_TCRED_BANC_CSERV_AGIFI_$',
         'Cargos por servicio con tarjetas de credito bancarias por institucion',
-        'Monthly bank credit card service charges by institution from CMF Cuadrosv2.',
+        'Monthly bank credit card service charge transaction counts by institution from CMF Cuadrosv2.',
         'https://best-sbif-api.azurewebsites.net/Cuadrosv2',
         'monthly',
-        'combined',
+        'count',
+        date '2009-04-01',
+        true
+    ),
+    (
+        'bank_credit_card_ops_cargos_por_servicio_nominal_volume',
+        'Cargos por Servicio',
+        'nominal_volume',
+        'SBIF_TCRED_BANC_CSERV_AGIFI_$',
+        'Cargos por servicio con tarjetas de credito bancarias por institucion',
+        'Monthly bank credit card service charge nominal volume by institution from CMF Cuadrosv2.',
+        'https://best-sbif-api.azurewebsites.net/Cuadrosv2',
+        'monthly',
+        'millions_clp',
         date '2009-04-01',
         true
     )
 on conflict (dataset_code) do update set
     operation_type = excluded.operation_type,
+    measure_kind = excluded.measure_kind,
     source_tag = excluded.source_tag,
-    transaction_count_source_tag = excluded.transaction_count_source_tag,
-    nominal_volume_source_tag = excluded.nominal_volume_source_tag,
     source_nombre = excluded.source_nombre,
     source_description = excluded.source_description,
     source_endpoint_base = excluded.source_endpoint_base,

@@ -20,7 +20,16 @@ from data.loaders.bank_credit_card_ops_sync_state_loader import (
     record_sync_success,
 )
 from data.models.bank_credit_card_operations import (
+    BANK_CREDIT_CARD_OPERATION_AVANCE_EN_EFECTIVO,
+    BANK_CREDIT_CARD_OPERATION_CARGOS_POR_SERVICIO,
+    BANK_CREDIT_CARD_OPERATION_COMPRAS,
+    BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET,
+    BANK_CREDIT_CARD_OPS_CARGOS_POR_SERVICIO_DATASET,
+    BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
+    CMF_MEASURE_KIND_NOMINAL_VOLUME,
+    CMF_MEASURE_KIND_TRANSACTION_COUNT,
     CMF_DATASETS_TABLE,
+    BankCreditCardEndpointConfig,
     BankCreditCardOperationConfig,
     BankCreditCardOpsRawObservation,
 )
@@ -49,25 +58,61 @@ def load_config() -> BankCreditCardOpsWorkerConfig:
     )
 
 
+def operation_dataset_code(operation_type: str) -> str:
+    if operation_type == BANK_CREDIT_CARD_OPERATION_COMPRAS:
+        return BANK_CREDIT_CARD_OPS_COMPRAS_DATASET
+    if operation_type == BANK_CREDIT_CARD_OPERATION_AVANCE_EN_EFECTIVO:
+        return BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET
+    if operation_type == BANK_CREDIT_CARD_OPERATION_CARGOS_POR_SERVICIO:
+        return BANK_CREDIT_CARD_OPS_CARGOS_POR_SERVICIO_DATASET
+
+    raise ValueError(f"Unsupported operation type: {operation_type}")
+
+
 def load_active_operation_configs(sb) -> list[BankCreditCardOperationConfig]:
     response = (
         sb.table(CMF_DATASETS_TABLE)
         .select(
-            "operation_type,dataset_code,transaction_count_source_tag,nominal_volume_source_tag,"
-            "source_tag,source_nombre,source_description,source_endpoint_base,"
-            "refresh_frequency,start_date,is_active"
+            "operation_type,dataset_code,measure_kind,source_tag,source_nombre,"
+            "source_description,source_endpoint_base,refresh_frequency,start_date,is_active"
         )
         .eq("is_active", True)
         .execute()
     )
+    endpoints_by_operation: dict[str, dict[str, BankCreditCardEndpointConfig]] = {}
+    for row in response.data or []:
+        if not row.get("operation_type") or not row.get("measure_kind") or not row.get("source_tag"):
+            continue
 
-    return [
-        BankCreditCardOperationConfig.from_row(row)
-        for row in (response.data or [])
-        if row.get("operation_type")
-        and row.get("transaction_count_source_tag")
-        and row.get("nominal_volume_source_tag")
-    ]
+        endpoint = BankCreditCardEndpointConfig.from_row(row)
+        endpoints_by_operation.setdefault(endpoint.operation_type, {})[
+            endpoint.measure_kind
+        ] = endpoint
+
+    operations: list[BankCreditCardOperationConfig] = []
+    for operation_type, endpoint_group in endpoints_by_operation.items():
+        transaction_count_endpoint = endpoint_group.get(CMF_MEASURE_KIND_TRANSACTION_COUNT)
+        nominal_volume_endpoint = endpoint_group.get(CMF_MEASURE_KIND_NOMINAL_VOLUME)
+        if transaction_count_endpoint is None or nominal_volume_endpoint is None:
+            continue
+
+        operations.append(
+            BankCreditCardOperationConfig(
+                operation_type=operation_type,
+                dataset_code=operation_dataset_code(operation_type),
+                transaction_count_dataset_code=transaction_count_endpoint.dataset_code,
+                nominal_volume_dataset_code=nominal_volume_endpoint.dataset_code,
+                transaction_count_source_tag=transaction_count_endpoint.source_tag,
+                nominal_volume_source_tag=nominal_volume_endpoint.source_tag,
+                source_nombre=transaction_count_endpoint.source_nombre,
+                source_description=transaction_count_endpoint.source_description,
+                source_endpoint_base=transaction_count_endpoint.source_endpoint_base,
+                refresh_frequency=transaction_count_endpoint.refresh_frequency,
+                start_date=transaction_count_endpoint.start_date,
+            )
+        )
+
+    return sorted(operations, key=lambda operation: operation.dataset_code)
 
 
 def latest_observation_month(observations: list[BankCreditCardOpsRawObservation]) -> date | None:
@@ -84,7 +129,8 @@ async def sync_operation_once(
     config: BankCreditCardOperationConfig,
     run_date: date,
 ) -> int:
-    record_sync_attempt(sb, config.dataset_code)
+    record_sync_attempt(sb, config.transaction_count_dataset_code)
+    record_sync_attempt(sb, config.nominal_volume_dataset_code)
     try:
         batch = await fetch_operation_batch(
             client,
@@ -96,8 +142,30 @@ async def sync_operation_once(
             log.info("Skipping %s: source returned no rows.", config.dataset_code)
             return 0
 
-        latest_state_month = get_latest_state_source_month(sb, config.dataset_code)
-        if latest_state_month is not None and batch.latest_source_month <= latest_state_month:
+        latest_transaction_count_state_month = get_latest_state_source_month(
+            sb,
+            config.transaction_count_dataset_code,
+        )
+        latest_nominal_volume_state_month = get_latest_state_source_month(
+            sb,
+            config.nominal_volume_dataset_code,
+        )
+        transaction_count_unchanged = (
+            batch.latest_transaction_count_source_month is None
+            or (
+                latest_transaction_count_state_month is not None
+                and batch.latest_transaction_count_source_month
+                <= latest_transaction_count_state_month
+            )
+        )
+        nominal_volume_unchanged = (
+            batch.latest_nominal_volume_source_month is None
+            or (
+                latest_nominal_volume_state_month is not None
+                and batch.latest_nominal_volume_source_month <= latest_nominal_volume_state_month
+            )
+        )
+        if transaction_count_unchanged and nominal_volume_unchanged:
             log.info("Skipping %s: latest source month is unchanged.", config.dataset_code)
             return 0
 
@@ -108,13 +176,21 @@ async def sync_operation_once(
         upsert_bank_credit_card_ops_raw(sb, batch.raw_observations)
         upsert_bank_credit_card_ops_curated(sb, curated_observations)
     except Exception as exc:
-        record_sync_failure(sb, dataset_code=config.dataset_code, error=exc)
+        record_sync_failure(sb, dataset_code=config.transaction_count_dataset_code, error=exc)
+        record_sync_failure(sb, dataset_code=config.nominal_volume_dataset_code, error=exc)
         raise
 
     record_sync_success(
         sb,
-        dataset_code=config.dataset_code,
-        latest_source_month=batch.latest_source_month,
+        dataset_code=config.transaction_count_dataset_code,
+        latest_source_month=batch.latest_transaction_count_source_month
+        or batch.latest_source_month,
+        latest_curated_month=batch.latest_source_month,
+    )
+    record_sync_success(
+        sb,
+        dataset_code=config.nominal_volume_dataset_code,
+        latest_source_month=batch.latest_nominal_volume_source_month or batch.latest_source_month,
         latest_curated_month=batch.latest_source_month,
     )
     return len(batch.raw_observations)

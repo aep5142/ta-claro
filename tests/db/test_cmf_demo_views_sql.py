@@ -8,13 +8,17 @@ def test_cmf_ops_foundation_sql_defines_unified_registry_and_tables():
     assert "create table if not exists public.cmf_dataset_sync_state" in sql
     assert "create table if not exists public.bank_credit_card_ops_raw" in sql
     assert "create table if not exists public.bank_credit_card_ops_curated" in sql
-    assert "bank_credit_card_ops_compras" in sql
-    assert "bank_credit_card_ops_avance_en_efectivo" in sql
-    assert "bank_credit_card_ops_cargos_por_servicio" in sql
+    assert "measure_kind text" in sql
+    assert "bank_credit_card_ops_compras_transaction_count" in sql
+    assert "bank_credit_card_ops_compras_nominal_volume" in sql
+    assert "bank_credit_card_ops_avance_en_efectivo_transaction_count" in sql
+    assert "bank_credit_card_ops_avance_en_efectivo_nominal_volume" in sql
+    assert "bank_credit_card_ops_cargos_por_servicio_transaction_count" in sql
+    assert "bank_credit_card_ops_cargos_por_servicio_nominal_volume" in sql
     assert "bank_credit_card_ops_raw_period_idx" in sql
     assert "bank_credit_card_ops_curated_period_idx" in sql
-    assert "bank_credit_card_ops_registry" not in sql
-    assert "bank_credit_card_ops_sync_state" not in sql
+    assert "transaction_count_source_tag" not in sql
+    assert "nominal_volume_source_tag" not in sql
 
 
 def test_cmf_ops_views_sql_defines_combined_public_view():

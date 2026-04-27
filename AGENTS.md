@@ -148,9 +148,14 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Raw monthly observations live in `public.bank_credit_card_ops_raw`.
 - Curated monthly observations live in `public.bank_credit_card_ops_curated`.
 - The public read surface is `public.bank_credit_card_ops_metrics`.
-- Registry rows store both source tags per operation:
-  - `transaction_count_source_tag`
-  - `nominal_volume_source_tag`
+- Registry rows are endpoint-level:
+  - one `transaction_count` row per operation type
+  - one `nominal_volume` row per operation type
+  - 6 rows total for the current 3 credit-card operation types
+- Registry rows store:
+  - `operation_type`
+  - `measure_kind`
+  - `source_tag`
 - The source builder uses `FechaInicio` from the registry row, `FechaFin=run_date`, the operation-specific source tag, and `from=reload`.
 - The parser derives `institution_code` from `source_codigo` by taking the token after `AGIFI`; this remains valid for all current operation endpoints.
 - The parser preserves CMF source metadata and merges the transaction-count and nominal-volume observations into one monthly raw row per operation and bank.
@@ -158,7 +163,7 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 - Curated monthly rows store `nominal_volume_thousands_millions_clp`, `uf_date_used`, `uf_value_used`, `real_value_uf`, and `average_ticket_uf`.
 - `real_value_uf` and `average_ticket_uf` are stored in UF units according to the current ops transform contract.
 - The public view exposes only the canonical stored fields and does not derive CLP convenience columns.
-- The worker runs daily by default, loops over active registry rows, no-ops on unchanged source month, and records success/failure per operation without blocking the other operations.
+- The worker runs daily by default, groups active endpoint rows by `operation_type`, fetches both endpoint tags together, no-ops only when both endpoint source months are unchanged, and records success/failure on both endpoint sync-state rows.
 - Shared ops state remains separate from UF state.
 
 # Current CMF Schema Assets
@@ -169,6 +174,8 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
   - `public.cmf_dataset_sync_state`
   - `public.bank_credit_card_ops_raw`
   - `public.bank_credit_card_ops_curated`
+- `public.cmf_datasets` is now endpoint-grained and includes `measure_kind`.
+- `public.cmf_dataset_sync_state` is also endpoint-grained and currently has 6 card-op rows, one per endpoint dataset code.
 - The public read surface lives in `db/003_bank_credit_card_ops_views.sql`.
 - `public.bank_credit_card_ops_curated` uses `dataset_code + institution_code + period_month` as the primary analytical grain.
 - The public card read surface is `public.bank_credit_card_ops_metrics`, which exposes the canonical stored curated fields only.
@@ -184,12 +191,13 @@ This repo currently contains a UF ingestion worker in `data/historical_api_uf.py
 
 - For monthly CMF ops datasets, do not hardcode a publication day.
 - Run the ops worker daily.
-- For each active registry row:
-  - fetch the endpoint with `FechaFin=today`
-  - detect the latest source month in the merged payloads
-  - compare against the latest stored curated month
-  - no-op when unchanged
-  - sync only when a newer month appears
+- For each operation type:
+  - read the active endpoint rows from `cmf_datasets`
+  - fetch both endpoint tags with `FechaFin=today`
+  - detect the latest source month for each endpoint separately
+  - compare each endpoint against its own `cmf_dataset_sync_state` row
+  - no-op only when both endpoint source months are unchanged
+  - sync the unified raw/curated operation rows when either endpoint advances
 - Failed runs should not advance sync state.
 - Keep ops sync-state separate from UF sync-state.
 - `average_ticket_uf` is stored in `public.bank_credit_card_ops_curated`.

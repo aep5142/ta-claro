@@ -15,6 +15,8 @@ from data.models.bank_credit_card_operations import (
 class BankCreditCardOpsObservationBatch:
     raw_observations: list[BankCreditCardOpsRawObservation]
     latest_source_month: date | None
+    latest_transaction_count_source_month: date | None
+    latest_nominal_volume_source_month: date | None
 
 
 def build_cmf_cuadros_url(
@@ -309,12 +311,26 @@ async def fetch_operation_batch(
         transaction_count_observations=transaction_count_observations,
         nominal_volume_observations=nominal_volume_observations,
     )
-    latest_source_month = (
-        max((observation.period_month for observation in raw_observations), default=None)
+    latest_transaction_count_source_month = max(
+        (observation.period_month for observation in transaction_count_observations),
+        default=None,
+    )
+    latest_nominal_volume_source_month = max(
+        (observation.period_month for observation in nominal_volume_observations),
+        default=None,
+    )
+    latest_source_month = max(
+        (
+            latest_transaction_count_source_month,
+            latest_nominal_volume_source_month,
+        ),
+        default=None,
     )
     return BankCreditCardOpsObservationBatch(
         raw_observations=raw_observations,
         latest_source_month=latest_source_month,
+        latest_transaction_count_source_month=latest_transaction_count_source_month,
+        latest_nominal_volume_source_month=latest_nominal_volume_source_month,
     )
 
 
