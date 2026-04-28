@@ -19,7 +19,6 @@ This repo contains two active ETL subsystems:
   - worker module: `data/workers/uf_worker.py`
 - Bank credit-card ops worker:
   - canonical entrypoint: `uv run data/bank_credit_card_ops.py`
-  - compatibility entrypoint still exists at `uv run data/api_bank_credit_card_operations.py`
   - worker module: `data/workers/bank_credit_card_ops_worker.py`
 
 # External Services
@@ -204,12 +203,46 @@ This repo contains two active ETL subsystems:
 # Deployment Notes
 
 - Railway should run workers as worker services, not request/response web apps.
-- If the card worker deployment command is updated, prefer:
+- Card worker deploy command:
   - `uv run data/bank_credit_card_ops.py`
-- The older card entrypoint remains available as a compatibility shim until deployment config is updated.
 
 # Frontend/Auth Direction
 
 - The future website is expected to support authentication.
 - Clerk is the likely auth provider, but no auth provider has been implemented or finalized yet.
 - Do not add Clerk config, auth middleware, protected routes, user/session models, or auth tables until an auth-specific phase is approved.
+
+# Frontend Demo State
+
+- The `front/` app is an active Next.js + Tailwind demo shell that mirrors the Artificial Analysis layout.
+- Frontend runtime:
+  - install deps in `front/` with `npm install`
+  - run locally with `npm run dev` from `front/`
+  - validate with `npm run build` from `front/`
+- Brand/navigation:
+  - Ta-Claro logo in the top bar
+  - primary sections: `Credit Cards`, `Debit Cards`, `Accounts`, `Loans`
+- only `Credit Cards` is functional in v1
+- `Debit Cards`, `Accounts`, and `Loans` are placeholders inside the shared shell
+- credit-card subsections/routes:
+  - `Purchases` at `/credit-cards/purchases`
+  - `Cash Advances` at `/credit-cards/cash-advances`
+  - `Fees` at `/credit-cards/fees`
+- Credit-card demo behavior:
+  - analysis tab is route-shareable via the `view` query param
+  - render `Market Share ($Volume)`, `Market Share (Transactions)`, and `Average Transaction (CLP)`
+  - main visualization is a multi-bank line chart over time
+  - time range is month-based and displayed as `MM/YY`
+  - default range is the last 12 months ending at the latest available month for the selected operation
+  - users can select and deselect banks
+  - chart points support hover/focus tooltip inspection
+  - use UF-adjusted CLP volume for `$Volume`
+  - default UF is the latest UF up to today in `America/Santiago`
+  - allow a user-entered UF override for CLP conversions
+  - money display uses integer values with `.` thousands separators
+  - percentage display uses `,` as the decimal separator with 1 decimal place
+  - frontend must auto-paginate Supabase reads for larger date ranges and must not treat missing rows as zero values
+- Data access:
+  - browser reads use Supabase anon/public key
+  - frontend reads `public.bank_credit_card_ops_metrics` and `public.uf_values`
+  - the browser path is public read-only; no login in v1

@@ -14,3 +14,8 @@ wheels/
 
 #Old files
 archive/
+
+# Frontend build artifacts
+front/node_modules/
+front/.next/
+front/out/
