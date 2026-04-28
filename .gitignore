@@ -19,3 +19,6 @@ archive/
 front/node_modules/
 front/.next/
 front/out/
+
+# Local planning notes
+*plan*.md
