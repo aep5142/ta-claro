@@ -57,14 +57,17 @@ This repo contains two active ETL subsystems:
 
 # Bank Credit-Card Ops State
 
-- The active card subsystem is the unified ops pipeline.
+- The active card subsystem is the unified ops pipeline plus monthly card-base counts, all run by the same worker.
 - Canonical operation types are:
   - `Compras`
   - `Avance en Efectivo`
   - `Cargos por Servicio`
+- The active operations-rate category is:
+  - `Operations Rate`
 - All 6 current credit-card endpoints use `FechaInicio=20090401`.
 - `FechaFin` is set to the run date.
 - The source builder always uses `from=reload`.
+- Card-base endpoints use the same CMF builder and share the same worker cycle.
 - The parser derives `institution_code` from `source_codigo` by:
   - splitting on `_`
   - finding `AGIFI`
@@ -78,6 +81,7 @@ This repo contains two active ETL subsystems:
   - one `transaction_count` row per operation type
   - one `nominal_volume` row per operation type
   - 6 rows total for the current 3 operations
+- The same worker also reads the 4 card-base endpoint rows used to derive active-card totals and cards-with-operations totals.
 - The worker groups endpoint rows by `operation_type`.
 - For each operation type it:
   - fetches both endpoint tags
@@ -87,6 +91,7 @@ This repo contains two active ETL subsystems:
   - writes unified raw rows
   - writes unified curated rows
   - records success or failure on both endpoint sync-state rows
+- For `Operations Rate` it writes the monthly bank-level totals needed by the public operations-rate view.
 - Failed runs do not advance sync state.
 - Ops sync state remains separate from UF sync state.
 
@@ -115,6 +120,11 @@ This repo contains two active ETL subsystems:
   - `public.bank_credit_card_ops_curated`
 - Unified bank credit-card public read surface:
   - `public.bank_credit_card_ops_metrics` as a view
+- Unified bank credit-card counts storage:
+  - `public.bank_credit_card_counts_raw`
+  - `public.bank_credit_card_counts_curated`
+- Unified bank credit-card operations-rate public read surface:
+  - `public.bank_credit_card_operations_rate_metrics` as a view
 
 # Card Data Contract
 
@@ -133,29 +143,46 @@ This repo contains two active ETL subsystems:
   - `institution_name`
   - `period_month`
   - `transaction_count`
-  - `nominal_volume_thousands_millions_clp`
+  - `nominal_volume_millions_clp`
   - `uf_date_used`
   - `uf_value_used`
   - `real_value_uf`
   - `average_ticket_uf`
+  - `total_active_cards`
+  - `operations_per_active_card`
   - `source_dataset_code`
   - `updated_at`
 - Volume conversion rules:
   - raw nominal volume is in millions of CLP
-  - curated nominal volume is in thousands of millions of CLP
+  - curated nominal volume is in millions of CLP
   - UF lookup uses the 15th day of the same month
-  - `real_value_uf = nominal_volume_thousands_millions_clp / uf_value_used`
-  - `average_ticket_uf = real_value_uf / transaction_count * 1000000000`
+  - `real_value_uf = nominal_volume_millions_clp / uf_value_used`
+  - `average_ticket_uf = real_value_uf / transaction_count * 1000000`
+- Card-count rows store:
+  - `dataset_code`
+  - `institution_code`
+  - `institution_name`
+  - `period_month`
+  - `card_count`
+- Curated card-count rows store:
+  - `active_cards_primary`
+  - `active_cards_supplementary`
+  - `total_active_cards`
+  - `cards_with_operations_primary`
+  - `cards_with_operations_supplementary`
+  - `total_cards_with_operations`
+  - `operations_rate`
 - All stored timestamps should use Santiago de Chile time.
 
 # Public Read Surface
 
 - `public.bank_credit_card_ops_metrics` is a view only, not a persisted metrics table.
-- It exposes only the canonical stored curated fields.
+- It exposes the canonical stored curated fields, including `nominal_volume_millions_clp`, `total_active_cards`, and `operations_per_active_card`.
 - It does not expose:
   - `average_ticket_clp_today`
-  - `nominal_volume_millions_clp`
+  - `operations_rate`
 - CLP convenience calculations should happen at query time outside the stored schema.
+- `public.bank_credit_card_operations_rate_metrics` exposes the bank-month totals used by the `Operations Rate` route.
 
 # SQL Assets
 
@@ -174,6 +201,10 @@ This repo contains two active ETL subsystems:
   - splits shared CMF metadata into 6 endpoint rows
 - `db/007_fix_card_ops_start_dates.sql`
   - normalizes all current credit-card endpoint `start_date` values to `2009-04-01`
+- `db/008_credit_card_card_counts.sql`
+  - creates the card-count tables and adds the 4 card-base datasets
+- `db/009_credit_card_metrics_rollback.sql`
+  - rolls curated ops volume back to millions, updates the metrics view, and adds the operations-rate public view
 
 # Repo Structure
 
@@ -228,9 +259,12 @@ This repo contains two active ETL subsystems:
   - `Purchases` at `/credit-cards/purchases`
   - `Cash Advances` at `/credit-cards/cash-advances`
   - `Fees` at `/credit-cards/fees`
+- `Operations Rate` at `/credit-cards/operations-rate`
 - Credit-card demo behavior:
   - analysis tab is route-shareable via the `view` query param
   - render `Market Share ($Volume)`, `Market Share (Transactions)`, and `Average Transaction (CLP)`
+  - render `Operations per Active Card` on the operation pages
+  - render `Total Active Cards`, `Total Cards with Operations`, and `Operations Rate` on the operations-rate page
   - main visualization is a multi-bank line chart over time
   - time range is month-based and displayed as `MM/YY`
   - default range is the last 12 months ending at the latest available month for the selected operation

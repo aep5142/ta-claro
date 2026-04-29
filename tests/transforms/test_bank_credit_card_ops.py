@@ -32,7 +32,7 @@ def _raw_observation():
         institution_name="Banco BICE",
         period_month=date(2026, 4, 1),
         transaction_count=Decimal("2500"),
-        nominal_volume_millions_clp=Decimal("120507338"),
+        nominal_volume_millions_clp=Decimal("120507.338"),
         source_payload={
             "transaction_count": {"Fecha": "2026-04-01", "Valor": "2.500"},
             "nominal_volume_millions_clp": {
@@ -57,11 +57,11 @@ def test_to_curated_bank_credit_card_ops_enriches_with_uf_and_average_ticket():
     assert curated[0].operation_type == "Compras"
     assert curated[0].institution_code == "BICE"
     assert curated[0].period_month == date(2026, 4, 1)
-    assert curated[0].nominal_volume_millions_clp == Decimal("120507338")
+    assert curated[0].nominal_volume_millions_clp == Decimal("120507.338")
     assert curated[0].uf_date_used == date(2026, 4, 15)
     assert curated[0].uf_value_used == Decimal("40000")
-    assert curated[0].real_value_uf == Decimal("3012.68345")
-    assert curated[0].average_ticket_uf == Decimal("1205073.38")
+    assert curated[0].real_value_uf == Decimal("3.01268345")
+    assert curated[0].average_ticket_uf == Decimal("1205.07338")
     assert curated[0].total_active_cards is None
     assert curated[0].operations_per_active_card is None
     assert curated[0].source_dataset_code == BANK_CREDIT_CARD_OPS_COMPRAS_DATASET
@@ -86,7 +86,7 @@ def test_to_curated_bank_credit_card_ops_keeps_operation_metadata():
         institution_name="Banco BICE",
         period_month=date(2026, 5, 1),
         transaction_count=Decimal("2000"),
-        nominal_volume_millions_clp=Decimal("60000000"),
+        nominal_volume_millions_clp=Decimal("60000"),
         source_payload={"transaction_count": {}, "nominal_volume_millions_clp": {}},
     )
 

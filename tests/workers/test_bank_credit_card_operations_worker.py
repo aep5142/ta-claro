@@ -162,7 +162,7 @@ def _batch(
             institution_name="Banco BICE",
             period_month=period_month,
             transaction_count=Decimal("2500"),
-            nominal_volume_millions_clp=Decimal("120507338"),
+            nominal_volume_millions_clp=Decimal("120507.338"),
             source_payload={"transaction_count": {}, "nominal_volume_millions_clp": {}},
         )
         for _ in range(rows_synced)
@@ -440,8 +440,8 @@ def test_sync_operation_once_syncs_newer_source_and_advances_state(monkeypatch):
     assert sb.upserts[2]["table"] == "bank_credit_card_ops_raw"
     assert sb.upserts[2]["payload"][0]["transaction_count"] == "2500"
     assert sb.upserts[3]["table"] == "bank_credit_card_ops_curated"
-    assert sb.upserts[3]["payload"][0]["average_ticket_uf"] == "1205073.38000000"
-    assert sb.upserts[3]["payload"][0]["nominal_volume_millions_clp"] == "120507338"
+    assert sb.upserts[3]["payload"][0]["average_ticket_uf"] == "1205.07338000000"
+    assert sb.upserts[3]["payload"][0]["nominal_volume_millions_clp"] == "120507.338"
     assert sb.upserts[4]["table"] == "cmf_dataset_sync_state"
     assert sb.upserts[4]["payload"]["latest_source_month"] == "2026-04-01"
     assert sb.upserts[4]["payload"]["latest_curated_month"] == "2026-04-01"

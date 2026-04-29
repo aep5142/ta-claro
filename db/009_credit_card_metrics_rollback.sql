@@ -5,6 +5,9 @@ alter table public.bank_credit_card_ops_curated
     add column if not exists total_active_cards numeric,
     add column if not exists operations_per_active_card numeric;
 
+alter view public.bank_credit_card_ops_metrics
+    rename column nominal_volume_thousands_millions_clp to nominal_volume_millions_clp;
+
 comment on table public.bank_credit_card_ops_curated
     is 'Curated bank credit-card operation observations in millions of CLP.';
 
@@ -40,10 +43,10 @@ select
     curated.uf_value_used,
     curated.real_value_uf,
     curated.average_ticket_uf,
-    curated.total_active_cards,
-    curated.operations_per_active_card,
     curated.source_dataset_code,
-    curated.updated_at
+    curated.updated_at,
+    curated.total_active_cards,
+    curated.operations_per_active_card
 from public.bank_credit_card_ops_curated as curated;
 
 create or replace view public.bank_credit_card_operations_rate_metrics as

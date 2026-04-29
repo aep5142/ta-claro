@@ -114,7 +114,7 @@ def _raw_observation():
         institution_name="Banco BICE",
         period_month=date(2026, 4, 1),
         transaction_count=Decimal("2500"),
-        nominal_volume_millions_clp=Decimal("120507338"),
+        nominal_volume_millions_clp=Decimal("120507.338"),
         source_payload={
             "transaction_count": {"Fecha": "2026-04-01", "Valor": "2.500"},
             "nominal_volume_millions_clp": {
@@ -133,11 +133,11 @@ def _curated_observation():
         institution_name="Banco BICE",
         period_month=date(2026, 4, 1),
         transaction_count=Decimal("2500"),
-        nominal_volume_millions_clp=Decimal("120507338"),
+        nominal_volume_millions_clp=Decimal("120507.338"),
         uf_date_used=date(2026, 4, 15),
         uf_value_used=Decimal("40000"),
-        real_value_uf=Decimal("3012.68345"),
-        average_ticket_uf=Decimal("1205073.38"),
+        real_value_uf=Decimal("3.01268345"),
+        average_ticket_uf=Decimal("1205.07338"),
         total_active_cards=Decimal("500"),
         operations_per_active_card=Decimal("5"),
         source_dataset_code=BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
@@ -225,7 +225,7 @@ def test_upsert_bank_credit_card_ops_raw_uses_idempotent_conflict_key():
     assert sb.upserts[0]["kwargs"] == {
         "on_conflict": "dataset_code,source_codigo,period_month"
     }
-    assert sb.upserts[0]["payload"][0]["nominal_volume_millions_clp"] == "120507338"
+    assert sb.upserts[0]["payload"][0]["nominal_volume_millions_clp"] == "120507.338"
 
 
 def test_upsert_bank_credit_card_ops_curated_uses_idempotent_conflict_key():
@@ -237,8 +237,8 @@ def test_upsert_bank_credit_card_ops_curated_uses_idempotent_conflict_key():
     assert sb.upserts[0]["kwargs"] == {
         "on_conflict": "dataset_code,institution_code,period_month"
     }
-    assert sb.upserts[0]["payload"][0]["average_ticket_uf"] == "1205073.38"
-    assert sb.upserts[0]["payload"][0]["nominal_volume_millions_clp"] == "120507338"
+    assert sb.upserts[0]["payload"][0]["average_ticket_uf"] == "1205.07338"
+    assert sb.upserts[0]["payload"][0]["nominal_volume_millions_clp"] == "120507.338"
 
 
 def test_upsert_bank_credit_card_count_raw_uses_idempotent_conflict_key():
