@@ -6,7 +6,7 @@ export function formatMoney(value: number): string {
 }
 
 export function formatMoneyWithSymbol(value: number): string {
-  return `$ ${formatMoney(value)}`;
+  return `$${formatMoney(value)}`;
 }
 
 export function formatDecimal(value: number): string {

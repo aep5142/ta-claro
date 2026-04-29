@@ -33,6 +33,7 @@ import {
   calculateMarketShares,
   formatDecimal,
   formatMoney,
+  formatMoneyWithSymbol,
   formatMonthLabel,
   formatPercent,
   getChileTodayIso,
@@ -671,7 +672,7 @@ function getOperationsRateMetricValue(
 
 function formatMetricValue(value: number, metricType: MetricType): string {
   if (metricType === "money") {
-    return formatMoney(value);
+    return formatMoneyWithSymbol(value);
   }
   if (metricType === "ratio") {
     return formatPercent(value);

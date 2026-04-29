@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { getBankColor } from "@/lib/bank-presentation";
-import { formatDecimal, formatMoney, formatMonthLabel, formatPercent } from "@/lib/formatters";
+import { formatDecimal, formatMoney, formatMoneyWithSymbol, formatMonthLabel, formatPercent } from "@/lib/formatters";
 
 type MetricLineChartProps = {
   months: string[];
@@ -43,6 +43,7 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
   const minValue = Math.min(...allValues);
   const maxValue = Math.max(...allValues);
   const valueRange = maxValue - minValue || 1;
+  const barMaxValue = Math.max(...allValues, 1);
 
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
@@ -74,7 +75,7 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
       : [];
   const formatMetricValue = (value: number) => {
     if (metricType === "money") {
-      return `${formatMoney(value)} CLP`;
+      return formatMoneyWithSymbol(value);
     }
     if (metricType === "ratio") {
       return formatPercent(value);
@@ -120,7 +121,7 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
                 }
 
                 const barY = padding.top + index * barRowHeight + 10;
-                const barWidth = ((value - minValue) / valueRange) * chartWidth;
+                const barWidth = (value / barMaxValue) * chartWidth;
                 const color = getBankColor(bank.institutionCode);
 
                 return (
@@ -160,7 +161,13 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
                       onBlur={() => setHoveredPoint(null)}
                       tabIndex={0}
                     />
-                    <text x={padding.left + Math.max(barWidth, 6) + 10} y={barY + 14} fontSize="11" fill="#95a8c7">
+                    <text
+                      x={Math.min(padding.left + Math.max(barWidth, 6) + 10, width - padding.right - 8)}
+                      y={barY + 14}
+                      textAnchor="start"
+                      fontSize="11"
+                      fill="#95a8c7"
+                    >
                       {formatMetricValue(value)}
                     </text>
                   </g>
@@ -178,12 +185,12 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
                 <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#22344f" strokeDasharray="4 6" />
                 <text x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="11" fill="#95a8c7">
                   {metricType === "money"
-                    ? formatMoney(tick)
+                    ? formatMoneyWithSymbol(tick)
                     : metricType === "ratio"
                       ? formatPercent(tick)
                       : metricType === "decimal"
                         ? formatDecimal(tick)
-                        : formatMoney(tick)}
+                        : formatMoneyWithSymbol(tick)}
                 </text>
               </g>
             );
@@ -312,7 +319,7 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
 
       <p className="text-xs text-muted">
         {metricType === "money"
-          ? "Money values are shown as rounded CLP integers."
+          ? "Money values are shown as rounded CLP integers with a $ prefix."
           : metricType === "ratio"
             ? "Operations rate is shown as a percentage of active cards."
             : metricType === "decimal"
