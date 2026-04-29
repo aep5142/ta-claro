@@ -6,6 +6,7 @@ import { formatDecimal, formatMoney, formatMoneyWithSymbol, formatMonthLabel, fo
 
 type MetricLineChartProps = {
   months: string[];
+  systemMonthTotals: Record<string, number>;
   series: Array<{
     institutionCode: string;
     institutionName: string;
@@ -14,7 +15,7 @@ type MetricLineChartProps = {
   metricType: "money" | "count" | "decimal" | "ratio";
 };
 
-export function MetricLineChart({ months, series, metricType }: MetricLineChartProps) {
+export function MetricLineChart({ months, systemMonthTotals, series, metricType }: MetricLineChartProps) {
   const width = 1120;
   const lineHeight = 360;
   const barRowHeight = 42;
@@ -28,6 +29,7 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
     color: string;
     x: number;
     y: number;
+    systemShare: number | null;
   } | null>(null);
 
   const allValues = series.flatMap((bank) =>
@@ -48,6 +50,7 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   const isSingleMonth = months.length === 1;
+  const monthTotals = systemMonthTotals;
 
   const xForIndex = (index: number) =>
     padding.left + (isSingleMonth ? chartWidth / 2 : (chartWidth * index) / (months.length - 1));
@@ -86,6 +89,10 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
     return formatMoney(value);
   };
   const tooltipValueLabel = formatMetricValue(hoveredPoint?.value ?? 0);
+  const tooltipShareLabel =
+    hoveredPoint?.systemShare === null || hoveredPoint?.systemShare === undefined
+      ? null
+      : formatPercent(hoveredPoint.systemShare);
 
   return (
     <div className="space-y-4">
@@ -105,6 +112,7 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
             </div>
             <p className="mt-2 text-xs text-muted">{formatMonthLabel(hoveredPoint.month)}</p>
             <p className="mt-1 text-sm font-medium text-white">{tooltipValueLabel}</p>
+            {tooltipShareLabel ? <p className="mt-1 text-xs italic text-brand">{tooltipShareLabel} of the system</p> : null}
           </div>
         ) : null}
 
@@ -121,8 +129,12 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
                 }
 
                 const barY = padding.top + index * barRowHeight + 10;
-                const barWidth = (value / barMaxValue) * chartWidth;
+                const barValueWidth = 120;
+                const barWidth = (value / barMaxValue) * (chartWidth - barValueWidth);
                 const color = getBankColor(bank.institutionCode);
+                const labelX = padding.left + barWidth + 12;
+                const totalValue = monthTotals[months[0]] || 0;
+                const systemShare = totalValue > 0 ? (value / totalValue) * 100 : null;
 
                 return (
                   <g key={bank.institutionCode}>
@@ -145,6 +157,7 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
                           color,
                           x: padding.left + Math.max(barWidth, 6),
                           y: barY,
+                          systemShare,
                         })
                       }
                       onMouseLeave={() => setHoveredPoint(null)}
@@ -156,13 +169,14 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
                           color,
                           x: padding.left + Math.max(barWidth, 6),
                           y: barY,
+                          systemShare,
                         })
                       }
                       onBlur={() => setHoveredPoint(null)}
                       tabIndex={0}
                     />
                     <text
-                      x={Math.min(padding.left + Math.max(barWidth, 6) + 10, width - padding.right - 8)}
+                      x={labelX}
                       y={barY + 14}
                       textAnchor="start"
                       fontSize="11"
@@ -275,6 +289,8 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
                           color,
                           x,
                           y,
+                          systemShare:
+                            monthTotals[month] > 0 ? (value / monthTotals[month]) * 100 : null,
                         })
                       }
                       onMouseLeave={() =>
@@ -290,6 +306,8 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
                           color,
                           x,
                           y,
+                          systemShare:
+                            monthTotals[month] > 0 ? (value / monthTotals[month]) * 100 : null,
                         })
                       }
                       onBlur={() =>

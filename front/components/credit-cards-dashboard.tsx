@@ -349,6 +349,20 @@ export function CreditCardsDashboard({
     [bankSeries, selectedBanks]
   );
 
+  const systemMonthTotals = useMemo(
+    () =>
+      Object.fromEntries(
+        months.map((month) => [
+          month,
+          bankSeries.reduce((sum, bank) => {
+            const value = bank.series[month];
+            return typeof value === "number" ? sum + value : sum;
+          }, 0),
+        ])
+      ) as Record<string, number>,
+    [bankSeries, months]
+  );
+
   const latestMonthRows = useMemo(
     () =>
       (isOperationsRateDashboard ? operationsRateRows : operationRows).filter(
@@ -547,7 +561,12 @@ export function CreditCardsDashboard({
             {isLoadingRows ? (
               <LoadingState label="Loading time series" compact />
             ) : selectedSeries.length ? (
-              <MetricLineChart months={months} series={selectedSeries} metricType={activeMetric.metricType} />
+              <MetricLineChart
+                months={months}
+                systemMonthTotals={systemMonthTotals}
+                series={selectedSeries}
+                metricType={activeMetric.metricType}
+              />
             ) : (
               <EmptyState
                 title="No banks selected"
