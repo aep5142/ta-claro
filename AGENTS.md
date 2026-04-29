@@ -262,7 +262,7 @@ This repo contains two active ETL subsystems:
 - `Operations Rate` at `/credit-cards/operations-rate`
 - Credit-card demo behavior:
   - analysis tab is route-shareable via the `view` query param
-  - render `Market Share ($Volume)`, `Market Share (Transactions)`, and `Average Transaction (CLP)`
+  - render `Volume ($)`, `Transactions (#)`, and `Average Transaction (CLP)`
   - render `Operations per Active Card` on the operation pages
   - render `Total Active Cards`, `Total Cards with Operations`, and `Operations Rate` on the operations-rate page
   - main visualization is a multi-bank line chart over time
@@ -270,13 +270,23 @@ This repo contains two active ETL subsystems:
   - default range is the last 12 months ending at the latest available month for the selected operation
   - users can select and deselect banks
   - chart points support hover/focus tooltip inspection
-  - use UF-adjusted CLP volume for `$Volume`
+  - bank labels come from a frontend mapping sourced from `others/bank-mapping.txt`
+  - fixed bank colors are derived deterministically from the bank code
+  - the sidebar uses a `Credit Cards` macro title and no `Live` badges
+  - the dashboard copy describes the product instead of repeating the shareable route
+  - use UF-adjusted CLP volume for `Volume ($)`
+  - the UF control is labeled `UF today`, uses a fixed `$` prefix, and formats thousands with `.`
   - default UF is the latest UF up to today in `America/Santiago`
-  - allow a user-entered UF override for CLP conversions
+  - allow a user-entered UF override for CLP conversions without resetting bank selection
+  - omit last-visible/last-loaded month copy because the range is already shown by Start and End
+  - the market-share table includes an `Others` row when the selected metric is share-based
+  - bank selector pills show only the bank name
+  - the layout uses the full available width and the chart does not require horizontal scrolling
+  - point markers shrink for long date ranges
   - money display uses integer values with `.` thousands separators
   - percentage display uses `,` as the decimal separator with 1 decimal place
   - frontend must auto-paginate Supabase reads for larger date ranges and must not treat missing rows as zero values
 - Data access:
   - browser reads use Supabase anon/public key
-  - frontend reads `public.bank_credit_card_ops_metrics` and `public.uf_values`
+  - frontend reads `public.bank_credit_card_ops_metrics`, `public.bank_credit_card_operations_rate_metrics`, and `public.uf_values`
   - the browser path is public read-only; no login in v1

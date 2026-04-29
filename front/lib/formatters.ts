@@ -5,6 +5,10 @@ export function formatMoney(value: number): string {
   }).format(Math.round(value));
 }
 
+export function formatMoneyWithSymbol(value: number): string {
+  return `$ ${formatMoney(value)}`;
+}
+
 export function formatDecimal(value: number): string {
   return new Intl.NumberFormat("de-DE", {
     maximumFractionDigits: 2,

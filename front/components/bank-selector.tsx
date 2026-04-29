@@ -1,18 +1,15 @@
-import { formatDecimal, formatMoney, formatPercent } from "@/lib/formatters";
+import { getBankDisplayName } from "@/lib/bank-presentation";
 
 type BankSelectorProps = {
   banks: Array<{
     institutionCode: string;
     institutionName: string;
-    latestValue: number | null;
   }>;
-  metricLabel: string;
-  metricType: "money" | "count" | "decimal" | "ratio";
   selectedBanks: string[];
   onChange: (nextSelected: string[]) => void;
 };
 
-export function BankSelector({ banks, metricLabel, metricType, selectedBanks, onChange }: BankSelectorProps) {
+export function BankSelector({ banks, selectedBanks, onChange }: BankSelectorProps) {
   function toggleBank(institutionCode: string) {
     onChange(
       selectedBanks.includes(institutionCode)
@@ -21,25 +18,11 @@ export function BankSelector({ banks, metricLabel, metricType, selectedBanks, on
     );
   }
 
-  function formatMetricValue(value: number): string {
-    if (metricType === "money") {
-      return `${formatMoney(value)} CLP`;
-    }
-    if (metricType === "ratio") {
-      return formatPercent(value);
-    }
-    if (metricType === "decimal") {
-      return formatDecimal(value);
-    }
-    return formatMoney(value);
-  }
-
   return (
     <aside className="rounded-3xl border border-border bg-panel p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand">Banks</p>
-          <h3 className="mt-2 text-xl font-semibold text-white">Select or deselect</h3>
+          <h3 className="text-xl font-semibold text-white">Banks</h3>
           <p className="mt-2 text-sm text-muted">Initial selection uses the top 5 banks for the active metric.</p>
         </div>
       </div>
@@ -77,9 +60,8 @@ export function BankSelector({ banks, metricLabel, metricType, selectedBanks, on
                 className="mt-1 h-4 w-4 rounded border-border bg-panelMuted text-brand focus:ring-brand"
               />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-white">{bank.institutionName}</span>
-                <span className="mt-1 block text-xs text-muted">
-                  {metricLabel}: {bank.latestValue === null ? "—" : formatMetricValue(bank.latestValue)}
+                <span className="block truncate text-sm font-medium text-white">
+                  {getBankDisplayName(bank.institutionName)}
                 </span>
               </span>
             </label>

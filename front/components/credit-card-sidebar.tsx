@@ -8,16 +8,23 @@ type CreditCardSidebarProps = {
 };
 
 export function CreditCardSidebar({ section, activeOperation }: CreditCardSidebarProps) {
+  const sectionTitle =
+    section === "credit-cards"
+      ? "Credit Cards"
+      : section === "debit-cards"
+        ? "Debit Cards"
+        : section === "accounts"
+          ? "Accounts"
+          : "Loans";
+
   return (
     <div className="rounded-3xl border border-border bg-panel p-4">
       <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand">Sections</p>
-        <h2 className="mt-2 text-xl font-semibold text-white">Navigation</h2>
+        <h2 className="text-xl font-semibold text-white">{sectionTitle}</h2>
       </div>
 
       {section === "credit-cards" ? (
         <div className="space-y-2">
-          <p className="mb-3 text-sm text-muted">Credit Cards</p>
           {creditCardOperations.map((item) => {
             const isActive = activeOperation === item.slug;
 
@@ -35,7 +42,6 @@ export function CreditCardSidebar({ section, activeOperation }: CreditCardSideba
                 )}
               >
                 <span>{item.label}</span>
-                <span className="text-xs uppercase tracking-[0.2em] text-muted">Live</span>
               </Link>
             );
           })}

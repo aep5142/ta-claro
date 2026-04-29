@@ -29,24 +29,58 @@ export const primarySections = [
 ] as const;
 
 export const chartViews = [
-  { key: "volume", label: "Market Share ($Volume)", metricType: "money" as const },
-  { key: "transactions", label: "Market Share (Transactions)", metricType: "count" as const },
-  { key: "average-ticket", label: "Average Transaction (CLP)", metricType: "money" as const },
+  {
+    key: "volume",
+    label: "Volume ($)",
+    metricType: "money" as const,
+    description: "Monthly credit-card volume for the selected operation.",
+    unitLabel: "Millions of CLP. Values are deflated using UF.",
+  },
+  {
+    key: "transactions",
+    label: "Transactions (#)",
+    metricType: "count" as const,
+    description: "Monthly number of card operations for the selected operation.",
+    unitLabel: "Number of operations (#).",
+  },
+  {
+    key: "average-ticket",
+    label: "Average Transaction (CLP)",
+    metricType: "money" as const,
+    description: "Average CLP amount per transaction for the selected operation.",
+    unitLabel: "CLP. Values are deflated using UF.",
+  },
   {
     key: "operations-per-active-card",
     label: "Operations per Active Card",
     metricType: "decimal" as const,
+    description: "Transactions per active credit card in the selected month.",
+    unitLabel: "Number of operations per active card.",
   },
 ] as const;
 
 export const operationsRateViews = [
-  { key: "total-active-cards", label: "Total Active Cards", metricType: "count" as const },
+  {
+    key: "total-active-cards",
+    label: "Total Active Cards",
+    metricType: "count" as const,
+    description: "Active credit cards per bank and month.",
+    unitLabel: "Number of active cards (#).",
+  },
   {
     key: "total-cards-with-operations",
     label: "Total Cards with Operations",
     metricType: "count" as const,
+    description: "Credit cards that registered at least one operation in the month.",
+    unitLabel: "Number of cards with operations (#).",
   },
-  { key: "operations-rate", label: "Operations Rate", metricType: "ratio" as const },
+  {
+    key: "operations-rate",
+    label: "Operations Rate",
+    metricType: "ratio" as const,
+    description: "Share of active cards that recorded operations in the month.",
+    unitLabel: "Percentage of active cards.",
+  },
 ] as const;
 
 export type ChartViewKey = (typeof chartViews)[number]["key"];

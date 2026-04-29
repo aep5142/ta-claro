@@ -13,7 +13,7 @@ export function AppShell({ children, section, activeOperation }: AppShellProps) 
   return (
     <div className="min-h-screen bg-surface">
       <header className="border-b border-border bg-[#07101c]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-4 sm:px-6">
+        <div className="flex w-full items-center gap-6 px-4 py-4 sm:px-6 lg:px-8">
           <Link href="/credit-cards/purchases?view=volume" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/15 text-lg font-semibold text-brand">
               TC
@@ -47,7 +47,7 @@ export function AppShell({ children, section, activeOperation }: AppShellProps) 
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row">
+      <div className="flex w-full flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:flex-row">
         <aside className="w-full shrink-0 lg:w-72">
           <CreditCardSidebar section={section} activeOperation={activeOperation} />
         </aside>

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BankSelector } from "@/components/bank-selector";
 import { EmptyState, ErrorState, LoadingState } from "@/components/dashboard-states";
 import { MetricLineChart } from "@/components/metric-line-chart";
+import { getBankDisplayName } from "@/lib/bank-presentation";
 import {
   type CreditCardMetricRow,
   fetchCreditCardMetrics,
@@ -57,7 +58,6 @@ type MetricType = "money" | "count" | "decimal" | "ratio";
 
 export function CreditCardsDashboard({
   operation,
-  operationSlug,
   initialView,
 }: CreditCardsDashboardProps) {
   const isOperationsRateDashboard = isOperationsRateOperation(operation);
@@ -80,6 +80,7 @@ export function CreditCardsDashboard({
   const [isLoadingBounds, setIsLoadingBounds] = useState(true);
   const [isLoadingRows, setIsLoadingRows] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const hasSeededSelectionRef = useRef(false);
 
   useEffect(() => {
     setViewKey(
@@ -129,6 +130,7 @@ export function CreditCardsDashboard({
             setStartMonth(safeStart);
             setEndMonth(latestMonth.slice(0, 7));
             setUfInput("");
+            hasSeededSelectionRef.current = false;
           }
 
           return;
@@ -160,7 +162,8 @@ export function CreditCardsDashboard({
           });
           setStartMonth(safeStart);
           setEndMonth(latestMonth.slice(0, 7));
-          setUfInput(String(Math.round(latestUf.value)));
+          setUfInput(formatMoney(Math.round(latestUf.value)));
+          hasSeededSelectionRef.current = false;
         }
       } catch (error) {
         if (!isCancelled) {
@@ -300,30 +303,45 @@ export function CreditCardsDashboard({
     return Array.from(grouped.entries())
       .map(([institutionCode, series]) => ({
         institutionCode,
-        institutionName: bankNames.get(institutionCode) ?? institutionCode,
+        institutionName: getBankDisplayName(bankNames.get(institutionCode) ?? institutionCode),
         series,
       }))
       .sort((left, right) => left.institutionName.localeCompare(right.institutionName));
   }, [activeUfValue, isOperationsRateDashboard, months, operationRows, operationsRateRows, viewKey]);
 
   useEffect(() => {
-    if (!bankSeries.length || !latestLoadedMonth) {
+    if (!bankSeries.length) {
       setSelectedBanks([]);
+      hasSeededSelectionRef.current = false;
       return;
     }
 
-    const ranked = bankSeries
-      .map((bank) => ({
-        institutionCode: bank.institutionCode,
-        value: bank.series[latestLoadedMonth],
-      }))
-      .filter((bank): bank is { institutionCode: string; value: number } => typeof bank.value === "number")
-      .sort((left, right) => right.value - left.value)
-      .slice(0, 5)
-      .map((item) => item.institutionCode);
+    setSelectedBanks((current) => {
+      const availableCodes = new Set(bankSeries.map((bank) => bank.institutionCode));
+      const filtered = current.filter((code) => availableCodes.has(code));
 
-    setSelectedBanks(ranked);
-  }, [bankSeries, latestLoadedMonth, operation, startMonth, endMonth, viewKey]);
+      if (filtered.length) {
+        return filtered;
+      }
+
+      if (hasSeededSelectionRef.current || !latestLoadedMonth) {
+        return current;
+      }
+
+      const ranked = bankSeries
+        .map((bank) => ({
+          institutionCode: bank.institutionCode,
+          value: bank.series[latestLoadedMonth],
+        }))
+        .filter((bank): bank is { institutionCode: string; value: number } => typeof bank.value === "number")
+        .sort((left, right) => right.value - left.value)
+        .slice(0, 5)
+        .map((item) => item.institutionCode);
+
+      hasSeededSelectionRef.current = true;
+      return ranked;
+    });
+  }, [bankSeries, latestLoadedMonth]);
 
   const selectedSeries = useMemo(
     () => bankSeries.filter((bank) => selectedBanks.includes(bank.institutionCode)),
@@ -354,7 +372,7 @@ export function CreditCardsDashboard({
       { volume: 0, transactions: 0 }
     );
 
-    return selectedBanks
+    const selectedRows = selectedBanks
       .map((institutionCode) => {
         const row = latestMonthRows.find((item) => item.institution_code === institutionCode);
         if (!row) {
@@ -383,13 +401,32 @@ export function CreditCardsDashboard({
 
         return {
           institutionCode,
-          institutionName: bankMap.get(institutionCode) ?? row.institution_name,
+          institutionName: bankMap.get(institutionCode) ?? getBankDisplayName(row.institution_name),
           currentValue,
           share,
         };
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row))
       .sort((left, right) => right.currentValue - left.currentValue);
+
+    if (isOperationsRateDashboard || viewKey === "average-ticket" || viewKey === "operations-per-active-card") {
+      return selectedRows;
+    }
+
+    const selectedTotal = selectedRows.reduce((accumulator, row) => accumulator + row.currentValue, 0);
+    const totalValue = viewKey === "volume" ? totals.volume : totals.transactions;
+    const othersValue = Math.max(totalValue - selectedTotal, 0);
+    const othersShare = calculateMarketShares(othersValue, totalValue);
+
+    return [
+      ...selectedRows,
+      {
+        institutionCode: "others",
+        institutionName: "Others",
+        currentValue: othersValue,
+        share: othersShare,
+      },
+    ];
   }, [activeUfValue, isOperationsRateDashboard, latestMonthRows, selectedBanks, selectedSeries, viewKey]);
 
   const availableMonthOptions = useMemo(() => {
@@ -420,14 +457,11 @@ export function CreditCardsDashboard({
     <section className="space-y-6">
       <div className="rounded-3xl border border-border bg-panel p-6">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-          <div>
+          <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand">Credit Cards</p>
             <h1 className="mt-3 text-3xl font-semibold text-white">{operationLabelMap[operation]}</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">
-              Shareable route: <span className="text-white">/credit-cards/{operationSlug}</span>.{" "}
-              {isOperationsRateDashboard
-                ? "Data comes from the public operations-rate view over monthly active cards and cards with operations."
-                : "Data comes from the public unified operations view and uses UF-adjusted CLP where applicable."}
+            <p className="mt-3 text-sm leading-6 text-muted">
+              Monthly credit-card analysis across banks, with UF-adjusted CLP values for volume and ticket metrics, plus the active-card and operations-rate views.
             </p>
           </div>
 
@@ -459,46 +493,46 @@ export function CreditCardsDashboard({
               </select>
             </ControlCard>
             {!isOperationsRateDashboard ? (
-              <ControlCard label={`UF (${boundaryState.defaultUfDate})`}>
-                <input
-                  value={ufInput}
-                  onChange={(event) => setUfInput(event.target.value)}
-                  inputMode="decimal"
-                  className="w-full rounded-2xl border border-border bg-panelMuted px-3 py-2 text-sm text-white outline-none transition focus:border-brand/60"
-                />
+              <ControlCard label="UF today">
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted">$</span>
+                  <input
+                    value={ufInput}
+                    onChange={(event) => {
+                      const digits = event.target.value.replace(/\D/g, "");
+                      setUfInput(digits ? formatMoney(Number(digits)) : "");
+                    }}
+                    inputMode="numeric"
+                    className="w-full rounded-2xl border border-border bg-panelMuted py-2 pl-8 pr-3 text-sm text-white outline-none transition focus:border-brand/60"
+                  />
+                </div>
               </ControlCard>
             ) : null}
           </div>
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="space-y-6">
           <div className="rounded-3xl border border-border bg-panel p-6">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-white">{activeMetric.label}</h2>
-                <p className="mt-2 text-sm text-muted">
-                  {formatMonthLabel(startMonth)} to {formatMonthLabel(endMonth)} · latest loaded month{" "}
-                  {latestLoadedMonth ? formatMonthLabel(latestLoadedMonth) : "—"}
+                <p className="mt-2 text-xs italic text-muted">
+                  {activeMetric.key === "volume" ? "Millions of CLP" : activeMetric.unitLabel}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 {(isOperationsRateDashboard ? operationsRateViews : chartViews).map((item) => (
-                  <button
+                  <MetricTabButton
                     key={item.key}
-                    type="button"
+                    active={viewKey === item.key}
+                    label={item.label}
+                    description={item.description}
+                    unitLabel={item.unitLabel}
                     onClick={() => setViewKey(item.key)}
-                    className={cn(
-                      "rounded-full border px-4 py-2 text-sm font-medium transition",
-                      viewKey === item.key
-                        ? "border-brand/60 bg-brand/10 text-white"
-                        : "border-border bg-panelMuted text-muted hover:text-white"
-                    )}
-                  >
-                    {item.label}
-                  </button>
+                  />
                 ))}
               </div>
             </div>
@@ -518,37 +552,34 @@ export function CreditCardsDashboard({
 
           <div className="rounded-3xl border border-border bg-panel p-6">
             <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-white">Latest visible month table</h3>
-                <p className="mt-1 text-sm text-muted">{latestLoadedMonth ? formatMonthLabel(latestLoadedMonth) : "—"}</p>
-              </div>
+              <h3 className="text-lg font-semibold text-white">Selected banks</h3>
               <div className="rounded-full border border-border bg-panelMuted px-4 py-2 text-xs uppercase tracking-[0.2em] text-muted">
                 {selectedBanks.length} selected
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border text-muted">
-                    <th className="pb-3 pr-4 font-medium">Bank</th>
-                    <th className="pb-3 pr-4 font-medium">{activeMetric.label}</th>
-                    <th className="pb-3 font-medium">Share</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {summaryRows.map((row) => (
-                    <tr key={row.institutionCode} className="border-b border-border/60">
-                      <td className="py-3 pr-4 text-white">{row.institutionName}</td>
-                      <td className="py-3 pr-4 text-white">
-                        {formatMetricValue(row.currentValue, activeMetric.metricType)}
-                      </td>
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-muted">
+                  <th className="pb-3 pr-4 font-medium">Bank</th>
+                  <th className="pb-3 pr-4 font-medium">{activeMetric.label}</th>
+                  {summaryRows.some((row) => row.share !== null) ? <th className="pb-3 font-medium">Share</th> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {summaryRows.map((row) => (
+                  <tr key={row.institutionCode} className="border-b border-border/60">
+                    <td className="py-3 pr-4 text-white">{row.institutionName}</td>
+                    <td className="py-3 pr-4 text-white">
+                      {formatMetricValue(row.currentValue, activeMetric.metricType)}
+                    </td>
+                    {summaryRows.some((entry) => entry.share !== null) ? (
                       <td className="py-3 text-white">{row.share === null ? "—" : formatPercent(row.share)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    ) : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -556,10 +587,7 @@ export function CreditCardsDashboard({
           banks={bankSeries.map((bank) => ({
             institutionCode: bank.institutionCode,
             institutionName: bank.institutionName,
-            latestValue: latestLoadedMonth ? bank.series[latestLoadedMonth] : null,
           }))}
-          metricLabel={activeMetric.label}
-          metricType={activeMetric.metricType}
           selectedBanks={selectedBanks}
           onChange={setSelectedBanks}
         />
@@ -629,5 +657,44 @@ function ControlCard({ label, children }: { label: string; children: React.React
       <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted">{label}</p>
       {children}
     </div>
+  );
+}
+
+function MetricTabButton({
+  active,
+  label,
+  description,
+  unitLabel,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  description: string;
+  unitLabel: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-4 py-2 text-sm font-medium transition",
+        active
+          ? "border-brand/60 bg-brand/10 text-white"
+          : "border-border bg-panelMuted text-muted hover:text-white"
+      )}
+    >
+      <span className="inline-flex items-center gap-2">
+        {label}
+        <span className="group relative inline-flex h-5 w-5 items-center justify-center rounded-full border border-current/30 text-[10px] font-semibold leading-none text-current transition hover:border-brand/60 hover:text-white focus-visible:border-brand/60 focus-visible:text-white">
+          i
+          <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-2xl border border-border bg-[#07101c] p-3 text-left text-xs leading-5 text-muted shadow-2xl group-hover:block">
+            <span className="block text-sm font-semibold text-white">{label}</span>
+            <span className="mt-1 block">{description}</span>
+            <span className="mt-1 block text-xs italic text-brand">{unitLabel}</span>
+          </span>
+        </span>
+      </span>
+    </button>
   );
 }
