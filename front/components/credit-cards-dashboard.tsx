@@ -418,7 +418,13 @@ export function CreditCardsDashboard({
     const othersValue = Math.max(totalValue - selectedTotal, 0);
     const othersShare = calculateMarketShares(othersValue, totalValue);
 
-    return [
+      return [
+      {
+        institutionCode: "total",
+        institutionName: "System",
+        currentValue: totalValue,
+        share: 100,
+      },
       ...selectedRows,
       {
         institutionCode: "others",
@@ -561,20 +567,45 @@ export function CreditCardsDashboard({
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-border text-muted">
-                  <th className="pb-3 pr-4 font-medium">Bank</th>
+                  <th className="pb-3 pr-4 font-medium">&nbsp;</th>
                   <th className="pb-3 pr-4 font-medium">{activeMetric.label}</th>
                   {summaryRows.some((row) => row.share !== null) ? <th className="pb-3 font-medium">Share</th> : null}
                 </tr>
               </thead>
               <tbody>
                 {summaryRows.map((row) => (
-                  <tr key={row.institutionCode} className="border-b border-border/60">
-                    <td className="py-3 pr-4 text-white">{row.institutionName}</td>
-                    <td className="py-3 pr-4 text-white">
+                  <tr
+                    key={row.institutionCode}
+                    className={cn(
+                      "border-b border-border/60",
+                      row.institutionCode === "total" ? "bg-brand/10" : ""
+                    )}
+                  >
+                    <td
+                      className={cn(
+                        "py-3 pr-4",
+                        row.institutionCode === "total" ? "text-base font-semibold text-white" : "text-white"
+                      )}
+                    >
+                      {row.institutionName}
+                    </td>
+                    <td
+                      className={cn(
+                        "py-3 pr-4",
+                        row.institutionCode === "total" ? "text-base font-semibold text-white" : "text-white"
+                      )}
+                    >
                       {formatMetricValue(row.currentValue, activeMetric.metricType)}
                     </td>
                     {summaryRows.some((entry) => entry.share !== null) ? (
-                      <td className="py-3 text-white">{row.share === null ? "—" : formatPercent(row.share)}</td>
+                      <td
+                        className={cn(
+                          "py-3",
+                          row.institutionCode === "total" ? "text-base font-semibold text-white" : "text-white"
+                        )}
+                      >
+                        {row.share === null ? "—" : formatPercent(row.share)}
+                      </td>
                     ) : null}
                   </tr>
                 ))}

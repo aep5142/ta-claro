@@ -16,8 +16,11 @@ type MetricLineChartProps = {
 
 export function MetricLineChart({ months, series, metricType }: MetricLineChartProps) {
   const width = 1120;
-  const height = 360;
-  const padding = { top: 18, right: 18, bottom: 42, left: 56 };
+  const lineHeight = 360;
+  const barRowHeight = 42;
+  const barHeight = Math.max(180, series.length * barRowHeight + 70);
+  const height = months.length === 1 ? barHeight : lineHeight;
+  const padding = months.length === 1 ? { top: 20, right: 24, bottom: 24, left: 160 } : { top: 18, right: 18, bottom: 42, left: 56 };
   const [hoveredPoint, setHoveredPoint] = useState<{
     institutionName: string;
     month: string;
@@ -43,15 +46,32 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
 
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
+  const isSingleMonth = months.length === 1;
 
   const xForIndex = (index: number) =>
-    padding.left + (months.length === 1 ? chartWidth / 2 : (chartWidth * index) / (months.length - 1));
-  const yForValue = (value: number) =>
-    padding.top + chartHeight - ((value - minValue) / valueRange) * chartHeight;
+    padding.left + (isSingleMonth ? chartWidth / 2 : (chartWidth * index) / (months.length - 1));
+  const yForValue = (value: number) => padding.top + chartHeight - ((value - minValue) / valueRange) * chartHeight;
 
   const yTicks = Array.from({ length: 4 }, (_, index) => minValue + (valueRange * index) / 3).reverse();
   const pointRadius = months.length > 72 ? 2.2 : months.length > 36 ? 2.8 : months.length > 18 ? 3.4 : 4.2;
   const monthLabelStep = months.length > 96 ? 12 : months.length > 72 ? 6 : months.length > 36 ? 4 : months.length > 24 ? 3 : months.length > 12 ? 2 : 1;
+  const singleMonthBanks =
+    months.length === 1
+      ? [...series]
+          .map((bank) => ({
+            ...bank,
+            value: bank.series[months[0]],
+          }))
+          .sort((left, right) => {
+            if (left.value === null || left.value === undefined) {
+              return 1;
+            }
+            if (right.value === null || right.value === undefined) {
+              return -1;
+            }
+            return right.value - left.value;
+          })
+      : [];
   const formatMetricValue = (value: number) => {
     if (metricType === "money") {
       return `${formatMoney(value)} CLP`;
@@ -88,6 +108,69 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
         ) : null}
 
         <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full">
+          {isSingleMonth ? (
+            <>
+              <text x={padding.left} y={padding.top - 2} textAnchor="start" fontSize="11" fill="#95a8c7">
+                {formatMonthLabel(months[0])}
+              </text>
+              {singleMonthBanks.map((bank, index) => {
+                const value = bank.value;
+                if (value === null || value === undefined) {
+                  return null;
+                }
+
+                const barY = padding.top + index * barRowHeight + 10;
+                const barWidth = ((value - minValue) / valueRange) * chartWidth;
+                const color = getBankColor(bank.institutionCode);
+
+                return (
+                  <g key={bank.institutionCode}>
+                    <text x={padding.left - 12} y={barY + 14} textAnchor="end" fontSize="11" fill="#d4def0">
+                      {bank.institutionName}
+                    </text>
+                    <rect
+                      x={padding.left}
+                      y={barY}
+                      width={Math.max(barWidth, 6)}
+                      height={22}
+                      rx={11}
+                      fill={color}
+                      className="cursor-pointer"
+                      onMouseEnter={() =>
+                        setHoveredPoint({
+                          institutionName: bank.institutionName,
+                          month: months[0],
+                          value,
+                          color,
+                          x: padding.left + Math.max(barWidth, 6),
+                          y: barY,
+                        })
+                      }
+                      onMouseLeave={() => setHoveredPoint(null)}
+                      onFocus={() =>
+                        setHoveredPoint({
+                          institutionName: bank.institutionName,
+                          month: months[0],
+                          value,
+                          color,
+                          x: padding.left + Math.max(barWidth, 6),
+                          y: barY,
+                        })
+                      }
+                      onBlur={() => setHoveredPoint(null)}
+                      tabIndex={0}
+                    />
+                    <text x={padding.left + Math.max(barWidth, 6) + 10} y={barY + 14} fontSize="11" fill="#95a8c7">
+                      {formatMetricValue(value)}
+                    </text>
+                  </g>
+                );
+              })}
+            </>
+          ) : null}
+
+          {!isSingleMonth ? (
+            <>
           {yTicks.map((tick) => {
             const y = yForValue(tick);
             return (
@@ -213,6 +296,8 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
               </g>
             );
           })}
+            </>
+          ) : null}
         </svg>
       </div>
 
