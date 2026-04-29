@@ -24,7 +24,9 @@ export function CreditCardSidebar({ section, activeOperation }: CreditCardSideba
             return (
               <Link
                 key={item.slug}
-                href={`/credit-cards/${item.slug}?view=volume`}
+                href={`/credit-cards/${item.slug}?view=${
+                  item.slug === "operations-rate" ? "total-active-cards" : "volume"
+                }`}
                 className={cn(
                   "flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition",
                   isActive

@@ -5,6 +5,13 @@ export function formatMoney(value: number): string {
   }).format(Math.round(value));
 }
 
+export function formatDecimal(value: number): string {
+  return new Intl.NumberFormat("de-DE", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  }).format(value);
+}
+
 export function formatPercent(value: number): string {
   return `${new Intl.NumberFormat("de-DE", {
     maximumFractionDigits: 1,

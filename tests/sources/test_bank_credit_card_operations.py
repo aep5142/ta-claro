@@ -4,6 +4,7 @@ from decimal import Decimal
 import pytest
 
 from data.models.bank_credit_card_operations import (
+    BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
     BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET,
     BANK_CREDIT_CARD_OPS_CARGOS_POR_SERVICIO_DATASET,
     BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
@@ -13,9 +14,11 @@ from data.sources.bank_credit_card_operations import (
     derive_institution_code,
     merge_operation_measure_observations,
     normalize_period_month,
+    parse_card_count_payload,
     parse_cmf_numeric,
     parse_nominal_volume_payload,
     parse_transaction_count_payload,
+    to_card_count_raw_observations,
 )
 from tests.fixtures.bank_credit_card_ops_live_payload import (
     LIVE_COMPRAS_NOMINAL_VOLUME_PAYLOAD,
@@ -135,6 +138,26 @@ def test_parse_nominal_volume_payload_normalizes_source_observations():
     assert observations[0].source_payload == {"Fecha": "2026-03-01", "Valor": "1.000.000"}
 
 
+def test_parse_card_count_payload_normalizes_source_observations():
+    payload = _payload(
+        series_id=401,
+        codigo="SBIF_TCRED_BANC_VIGTIT_AGIFI_BICE_NUM",
+        nombre="Banco BICE",
+        values=[("2026-03-01", "100"), ("2026-04-01", "110")],
+    )
+
+    observations = parse_card_count_payload(
+        payload,
+        dataset_code=BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
+    )
+
+    assert len(observations) == 2
+    assert observations[0].dataset_code == BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET
+    assert observations[0].source_codigo == "SBIF_TCRED_BANC_VIGTIT_AGIFI_BICE_NUM"
+    assert observations[0].institution_code == "BICE"
+    assert observations[0].value == Decimal("100")
+
+
 def test_parse_transaction_count_payload_accepts_live_payload_shape():
     observations = parse_transaction_count_payload(
         LIVE_COMPRAS_TRANSACTION_COUNT_PAYLOAD,
@@ -210,3 +233,21 @@ def test_merge_operation_measure_observations_builds_raw_rows():
             "Valor": "120.507.338",
         },
     }
+
+
+def test_to_card_count_raw_observations_preserves_monthly_values():
+    observations = to_card_count_raw_observations(
+        parse_card_count_payload(
+            _payload(
+                series_id=401,
+                codigo="SBIF_TCRED_BANC_VIGTIT_AGIFI_BICE_NUM",
+                nombre="Banco BICE",
+                values=[("2026-04-01", "110")],
+            ),
+            dataset_code=BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
+        )
+    )
+
+    assert len(observations) == 1
+    assert observations[0].dataset_code == BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET
+    assert observations[0].card_count == Decimal("110")

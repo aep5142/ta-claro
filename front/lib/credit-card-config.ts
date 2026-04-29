@@ -2,6 +2,7 @@ export const creditCardOperations = [
   { slug: "purchases", label: "Purchases", operation: "Compras" },
   { slug: "cash-advances", label: "Cash Advances", operation: "Avance en Efectivo" },
   { slug: "fees", label: "Fees", operation: "Cargos por Servicio" },
+  { slug: "operations-rate", label: "Operations Rate", operation: "Operations Rate" },
 ] as const;
 
 export const operationSlugs = creditCardOperations.map((item) => item.slug);
@@ -12,6 +13,7 @@ export const operationLabelMap: Record<OperationName, string> = {
   Compras: "Purchases",
   "Avance en Efectivo": "Cash Advances",
   "Cargos por Servicio": "Fees",
+  "Operations Rate": "Operations Rate",
 };
 
 export function operationFromSlug(slug: string): OperationName | null {
@@ -30,17 +32,46 @@ export const chartViews = [
   { key: "volume", label: "Market Share ($Volume)", metricType: "money" as const },
   { key: "transactions", label: "Market Share (Transactions)", metricType: "count" as const },
   { key: "average-ticket", label: "Average Transaction (CLP)", metricType: "money" as const },
+  {
+    key: "operations-per-active-card",
+    label: "Operations per Active Card",
+    metricType: "decimal" as const,
+  },
+] as const;
+
+export const operationsRateViews = [
+  { key: "total-active-cards", label: "Total Active Cards", metricType: "count" as const },
+  {
+    key: "total-cards-with-operations",
+    label: "Total Cards with Operations",
+    metricType: "count" as const,
+  },
+  { key: "operations-rate", label: "Operations Rate", metricType: "ratio" as const },
 ] as const;
 
 export type ChartViewKey = (typeof chartViews)[number]["key"];
+export type OperationsRateViewKey = (typeof operationsRateViews)[number]["key"];
 
 export const chartViewByKey = Object.fromEntries(chartViews.map((item) => [item.key, item])) as Record<
   ChartViewKey,
   (typeof chartViews)[number]
 >;
 
+export const operationsRateViewByKey = Object.fromEntries(
+  operationsRateViews.map((item) => [item.key, item])
+) as Record<OperationsRateViewKey, (typeof operationsRateViews)[number]>;
+
 export const defaultViewKey: ChartViewKey = "volume";
+export const defaultOperationsRateViewKey: OperationsRateViewKey = "total-active-cards";
 
 export function isChartViewKey(value: string | undefined): value is ChartViewKey {
   return Boolean(value && value in chartViewByKey);
+}
+
+export function isOperationsRateViewKey(value: string | undefined): value is OperationsRateViewKey {
+  return Boolean(value && value in operationsRateViewByKey);
+}
+
+export function isOperationsRateOperation(operation: OperationName): operation is "Operations Rate" {
+  return operation === "Operations Rate";
 }

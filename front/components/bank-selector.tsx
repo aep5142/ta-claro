@@ -1,4 +1,4 @@
-import { formatMoney } from "@/lib/formatters";
+import { formatDecimal, formatMoney, formatPercent } from "@/lib/formatters";
 
 type BankSelectorProps = {
   banks: Array<{
@@ -7,17 +7,31 @@ type BankSelectorProps = {
     latestValue: number | null;
   }>;
   metricLabel: string;
+  metricType: "money" | "count" | "decimal" | "ratio";
   selectedBanks: string[];
   onChange: (nextSelected: string[]) => void;
 };
 
-export function BankSelector({ banks, metricLabel, selectedBanks, onChange }: BankSelectorProps) {
+export function BankSelector({ banks, metricLabel, metricType, selectedBanks, onChange }: BankSelectorProps) {
   function toggleBank(institutionCode: string) {
     onChange(
       selectedBanks.includes(institutionCode)
         ? selectedBanks.filter((code) => code !== institutionCode)
         : [...selectedBanks, institutionCode]
     );
+  }
+
+  function formatMetricValue(value: number): string {
+    if (metricType === "money") {
+      return `${formatMoney(value)} CLP`;
+    }
+    if (metricType === "ratio") {
+      return formatPercent(value);
+    }
+    if (metricType === "decimal") {
+      return formatDecimal(value);
+    }
+    return formatMoney(value);
   }
 
   return (
@@ -65,7 +79,7 @@ export function BankSelector({ banks, metricLabel, selectedBanks, onChange }: Ba
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-white">{bank.institutionName}</span>
                 <span className="mt-1 block text-xs text-muted">
-                  {metricLabel}: {bank.latestValue === null ? "—" : formatMoney(bank.latestValue)}
+                  {metricLabel}: {bank.latestValue === null ? "—" : formatMetricValue(bank.latestValue)}
                 </span>
               </span>
             </label>

@@ -2,8 +2,12 @@ from datetime import date
 from decimal import Decimal
 
 from data.models.bank_credit_card_operations import (
+    BANK_CREDIT_CARD_COUNTS_CURATED_TABLE,
+    BANK_CREDIT_CARD_COUNTS_RAW_TABLE,
     BANK_CREDIT_CARD_OPS_CURATED_TABLE,
     BANK_CREDIT_CARD_OPS_RAW_TABLE,
+    BankCreditCardCountsCuratedObservation,
+    BankCreditCardCountRawObservation,
     BankCreditCardOpsCuratedObservation,
     BankCreditCardOpsRawObservation,
 )
@@ -15,6 +19,38 @@ def latest_curated_operation_month(sb, *, dataset_code: str) -> date | None:
         .select("period_month")
         .eq("dataset_code", dataset_code)
         .order("period_month", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    if not response.data:
+        return None
+
+    return date.fromisoformat(response.data[0]["period_month"])
+
+
+def earliest_curated_operation_month(sb, *, dataset_code: str) -> date | None:
+    response = (
+        sb.table(BANK_CREDIT_CARD_OPS_CURATED_TABLE)
+        .select("period_month")
+        .eq("dataset_code", dataset_code)
+        .order("period_month", desc=False)
+        .limit(1)
+        .execute()
+    )
+
+    if not response.data:
+        return None
+
+    return date.fromisoformat(response.data[0]["period_month"])
+
+
+def earliest_curated_card_count_month(sb, *, dataset_code: str) -> date | None:
+    response = (
+        sb.table(BANK_CREDIT_CARD_COUNTS_CURATED_TABLE)
+        .select("period_month")
+        .eq("dataset_code", dataset_code)
+        .order("period_month", desc=False)
         .limit(1)
         .execute()
     )
@@ -66,6 +102,40 @@ def upsert_bank_credit_card_ops_curated(
 
     return (
         sb.table(BANK_CREDIT_CARD_OPS_CURATED_TABLE)
+        .upsert(
+            [observation.to_row() for observation in observations],
+            on_conflict="dataset_code,institution_code,period_month",
+        )
+        .execute()
+    )
+
+
+def upsert_bank_credit_card_count_raw(
+    sb,
+    observations: list[BankCreditCardCountRawObservation],
+):
+    if not observations:
+        return None
+
+    return (
+        sb.table(BANK_CREDIT_CARD_COUNTS_RAW_TABLE)
+        .upsert(
+            [observation.to_row() for observation in observations],
+            on_conflict="dataset_code,source_codigo,period_month",
+        )
+        .execute()
+    )
+
+
+def upsert_bank_credit_card_counts_curated(
+    sb,
+    observations: list[BankCreditCardCountsCuratedObservation],
+):
+    if not observations:
+        return None
+
+    return (
+        sb.table(BANK_CREDIT_CARD_COUNTS_CURATED_TABLE)
         .upsert(
             [observation.to_row() for observation in observations],
             on_conflict="dataset_code,institution_code,period_month",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatMoney, formatMonthLabel } from "@/lib/formatters";
+import { formatDecimal, formatMoney, formatMonthLabel, formatPercent } from "@/lib/formatters";
 
 type MetricLineChartProps = {
   months: string[];
@@ -10,7 +10,7 @@ type MetricLineChartProps = {
     institutionName: string;
     series: Record<string, number | null>;
   }>;
-  metricType: "money" | "count";
+  metricType: "money" | "count" | "decimal" | "ratio";
 };
 
 const palette = ["#5eead4", "#60a5fa", "#f472b6", "#fbbf24", "#a78bfa", "#fb7185", "#34d399"];
@@ -51,7 +51,19 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
     padding.top + chartHeight - ((value - minValue) / valueRange) * chartHeight;
 
   const yTicks = Array.from({ length: 4 }, (_, index) => minValue + (valueRange * index) / 3).reverse();
-  const tooltipValueLabel = metricType === "money" ? `${formatMoney(hoveredPoint?.value ?? 0)} CLP` : formatMoney(hoveredPoint?.value ?? 0);
+  const formatMetricValue = (value: number) => {
+    if (metricType === "money") {
+      return `${formatMoney(value)} CLP`;
+    }
+    if (metricType === "ratio") {
+      return formatPercent(value);
+    }
+    if (metricType === "decimal") {
+      return formatDecimal(value);
+    }
+    return formatMoney(value);
+  };
+  const tooltipValueLabel = formatMetricValue(hoveredPoint?.value ?? 0);
 
   return (
     <div className="space-y-4">
@@ -82,7 +94,13 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
                 <g key={tick}>
                   <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#22344f" strokeDasharray="4 6" />
                   <text x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="11" fill="#95a8c7">
-                    {formatMoney(tick)}
+                    {metricType === "money"
+                      ? formatMoney(tick)
+                      : metricType === "ratio"
+                        ? formatPercent(tick)
+                        : metricType === "decimal"
+                          ? formatDecimal(tick)
+                          : formatMoney(tick)}
                   </text>
                 </g>
               );
@@ -198,7 +216,13 @@ export function MetricLineChart({ months, series, metricType }: MetricLineChartP
       </div>
 
       <p className="text-xs text-muted">
-        {metricType === "money" ? "Money values are shown as rounded CLP integers." : "Transaction counts are shown as rounded integers."}
+        {metricType === "money"
+          ? "Money values are shown as rounded CLP integers."
+          : metricType === "ratio"
+            ? "Operations rate is shown as a percentage of active cards."
+            : metricType === "decimal"
+              ? "Ratio values are shown with two decimal places."
+              : "Transaction counts are shown as rounded integers."}
       </p>
     </div>
   );

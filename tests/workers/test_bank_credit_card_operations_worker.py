@@ -5,21 +5,37 @@ from decimal import Decimal
 import pytest
 
 from data.models.bank_credit_card_operations import (
+    BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
+    BANK_CREDIT_CARD_ACTIVE_CARDS_SUPPLEMENTARY_DATASET,
+    BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET,
+    BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET,
+    BANK_CREDIT_CARD_COUNTS_DATASET,
     BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET,
     BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_NOMINAL_VOLUME_DATASET,
     BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_TRANSACTION_COUNT_DATASET,
     BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
     BANK_CREDIT_CARD_OPS_COMPRAS_NOMINAL_VOLUME_DATASET,
     BANK_CREDIT_CARD_OPS_COMPRAS_TRANSACTION_COUNT_DATASET,
+    CMF_MEASURE_KIND_ACTIVE_CARDS_PRIMARY,
+    CMF_MEASURE_KIND_ACTIVE_CARDS_SUPPLEMENTARY,
+    CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_PRIMARY,
+    CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_SUPPLEMENTARY,
     CMF_MEASURE_KIND_NOMINAL_VOLUME,
     CMF_MEASURE_KIND_TRANSACTION_COUNT,
+    BankCreditCardCountsConfig,
+    BankCreditCardCountRawObservation,
     BankCreditCardOperationConfig,
     BankCreditCardOpsRawObservation,
 )
-from data.sources.bank_credit_card_operations import BankCreditCardOpsObservationBatch
+from data.sources.bank_credit_card_operations import (
+    BankCreditCardCountsObservationBatch,
+    BankCreditCardOpsObservationBatch,
+)
 from data.workers.bank_credit_card_ops_worker import (
     BankCreditCardOpsWorkerConfig,
+    load_active_card_counts_config,
     load_active_operation_configs,
+    sync_card_counts_once,
     sync_all_bank_credit_card_ops_once,
     sync_operation_once,
 )
@@ -86,11 +102,20 @@ class FakeTable:
 
 
 class FakeSupabase:
-    def __init__(self, datasets=None, states=None, uf_values=None):
+    def __init__(
+        self,
+        datasets=None,
+        states=None,
+        uf_values=None,
+        count_curated=None,
+        ops_curated=None,
+    ):
         self.db = {
             "datasets": datasets or [],
             "states": states or {},
             "uf_values": uf_values or {},
+            "count_curated": count_curated or [],
+            "bank_credit_card_ops_curated": ops_curated or [],
             "upserts": [],
         }
 
@@ -146,8 +171,83 @@ def _batch(
     return BankCreditCardOpsObservationBatch(
         raw_observations=raw_observations,
         latest_source_month=period_month,
+        earliest_source_month=period_month,
         latest_transaction_count_source_month=transaction_count_period_month or period_month,
         latest_nominal_volume_source_month=nominal_volume_period_month or period_month,
+    )
+
+
+def _counts_config() -> BankCreditCardCountsConfig:
+    return BankCreditCardCountsConfig(
+        dataset_code=BANK_CREDIT_CARD_COUNTS_DATASET,
+        active_cards_primary_dataset_code=BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
+        active_cards_supplementary_dataset_code=BANK_CREDIT_CARD_ACTIVE_CARDS_SUPPLEMENTARY_DATASET,
+        cards_with_operations_primary_dataset_code=BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET,
+        cards_with_operations_supplementary_dataset_code=BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET,
+        active_cards_primary_source_tag="active-primary",
+        active_cards_supplementary_source_tag="active-supplementary",
+        cards_with_operations_primary_source_tag="ops-primary",
+        cards_with_operations_supplementary_source_tag="ops-supplementary",
+        source_endpoint_base="https://cmf.example",
+        refresh_frequency="monthly",
+        start_date=date(2009, 4, 1),
+    )
+
+
+def _counts_batch(period_month: date) -> BankCreditCardCountsObservationBatch:
+    return BankCreditCardCountsObservationBatch(
+        raw_observations=[
+            BankCreditCardCountRawObservation(
+                dataset_code=BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
+                source_series_id="401",
+                source_codigo="SBIF_TCRED_BANC_VIGTIT_AGIFI_BICE_NUM",
+                source_nombre="Banco BICE",
+                institution_code="BICE",
+                institution_name="Banco BICE",
+                period_month=period_month,
+                card_count=Decimal("100"),
+                source_payload={},
+            ),
+            BankCreditCardCountRawObservation(
+                dataset_code=BANK_CREDIT_CARD_ACTIVE_CARDS_SUPPLEMENTARY_DATASET,
+                source_series_id="402",
+                source_codigo="SBIF_TCRED_BANC_VIGADIC_AGIFI_BICE_NUM",
+                source_nombre="Banco BICE",
+                institution_code="BICE",
+                institution_name="Banco BICE",
+                period_month=period_month,
+                card_count=Decimal("10"),
+                source_payload={},
+            ),
+            BankCreditCardCountRawObservation(
+                dataset_code=BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET,
+                source_series_id="403",
+                source_codigo="SBIF_TCRED_BANC_COPETIT_AGIFI_BICE_NUM",
+                source_nombre="Banco BICE",
+                institution_code="BICE",
+                institution_name="Banco BICE",
+                period_month=period_month,
+                card_count=Decimal("80"),
+                source_payload={},
+            ),
+            BankCreditCardCountRawObservation(
+                dataset_code=BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET,
+                source_series_id="404",
+                source_codigo="SBIF_TCRED_BANC_COPEADIC_AGIFI_BICE_NUM",
+                source_nombre="Banco BICE",
+                institution_code="BICE",
+                institution_name="Banco BICE",
+                period_month=period_month,
+                card_count=Decimal("5"),
+                source_payload={},
+            ),
+        ],
+        latest_source_month=period_month,
+        earliest_source_month=period_month,
+        latest_active_cards_primary_source_month=period_month,
+        latest_active_cards_supplementary_source_month=period_month,
+        latest_cards_with_operations_primary_source_month=period_month,
+        latest_cards_with_operations_supplementary_source_month=period_month,
     )
 
 
@@ -213,6 +313,59 @@ def test_load_active_operation_configs_reads_registry_rows():
     ]
 
 
+def test_load_active_card_counts_config_reads_registry_rows():
+    sb = FakeSupabase(
+        datasets=[
+            {
+                "dataset_code": BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
+                "operation_type": "Operations Rate",
+                "measure_kind": CMF_MEASURE_KIND_ACTIVE_CARDS_PRIMARY,
+                "source_tag": "active-primary",
+                "source_endpoint_base": "https://cmf.example",
+                "refresh_frequency": "monthly",
+                "start_date": "2009-04-01",
+                "is_active": True,
+            },
+            {
+                "dataset_code": BANK_CREDIT_CARD_ACTIVE_CARDS_SUPPLEMENTARY_DATASET,
+                "operation_type": "Operations Rate",
+                "measure_kind": CMF_MEASURE_KIND_ACTIVE_CARDS_SUPPLEMENTARY,
+                "source_tag": "active-supplementary",
+                "source_endpoint_base": "https://cmf.example",
+                "refresh_frequency": "monthly",
+                "start_date": "2009-04-01",
+                "is_active": True,
+            },
+            {
+                "dataset_code": BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET,
+                "operation_type": "Operations Rate",
+                "measure_kind": CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_PRIMARY,
+                "source_tag": "ops-primary",
+                "source_endpoint_base": "https://cmf.example",
+                "refresh_frequency": "monthly",
+                "start_date": "2009-04-01",
+                "is_active": True,
+            },
+            {
+                "dataset_code": BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET,
+                "operation_type": "Operations Rate",
+                "measure_kind": CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_SUPPLEMENTARY,
+                "source_tag": "ops-supplementary",
+                "source_endpoint_base": "https://cmf.example",
+                "refresh_frequency": "monthly",
+                "start_date": "2009-04-01",
+                "is_active": True,
+            },
+        ]
+    )
+
+    config = load_active_card_counts_config(sb)
+
+    assert config is not None
+    assert config.dataset_code == BANK_CREDIT_CARD_COUNTS_DATASET
+    assert config.active_cards_primary_dataset_code == BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET
+
+
 def test_sync_operation_once_noops_when_source_month_is_unchanged(monkeypatch):
     dataset = _config(BANK_CREDIT_CARD_OPS_COMPRAS_DATASET, "Compras")
     sb = FakeSupabase(
@@ -225,6 +378,7 @@ def test_sync_operation_once_noops_when_source_month_is_unchanged(monkeypatch):
             ],
         },
         uf_values={"2026-04-15": [{"value": "40000"}]},
+        ops_curated=[{"period_month": "2026-04-01"}],
     )
 
     async def fake_fetch_operation_batch(_client, *, config, fecha_fin):
@@ -286,7 +440,8 @@ def test_sync_operation_once_syncs_newer_source_and_advances_state(monkeypatch):
     assert sb.upserts[2]["table"] == "bank_credit_card_ops_raw"
     assert sb.upserts[2]["payload"][0]["transaction_count"] == "2500"
     assert sb.upserts[3]["table"] == "bank_credit_card_ops_curated"
-    assert sb.upserts[3]["payload"][0]["average_ticket_uf"] == "1205073.38000000000"
+    assert sb.upserts[3]["payload"][0]["average_ticket_uf"] == "1205073.38000000"
+    assert sb.upserts[3]["payload"][0]["nominal_volume_millions_clp"] == "120507338"
     assert sb.upserts[4]["table"] == "cmf_dataset_sync_state"
     assert sb.upserts[4]["payload"]["latest_source_month"] == "2026-04-01"
     assert sb.upserts[4]["payload"]["latest_curated_month"] == "2026-04-01"
@@ -410,4 +565,88 @@ def test_sync_all_bank_credit_card_ops_once_continues_after_one_operation_failur
     assert results == {
         BANK_CREDIT_CARD_OPS_COMPRAS_DATASET: 0,
         BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET: 3,
+    }
+
+
+def test_sync_card_counts_once_syncs_newer_source_and_advances_state(monkeypatch):
+    config = _counts_config()
+    sb = FakeSupabase(
+        states={
+            BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET: [
+                {"latest_source_month": "2026-03-01"}
+            ],
+            BANK_CREDIT_CARD_ACTIVE_CARDS_SUPPLEMENTARY_DATASET: [
+                {"latest_source_month": "2026-03-01"}
+            ],
+            BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET: [
+                {"latest_source_month": "2026-03-01"}
+            ],
+            BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET: [
+                {"latest_source_month": "2026-03-01"}
+            ],
+        },
+    )
+
+    async def fake_fetch_card_counts_batch(_client, *, config, fecha_fin):
+        return _counts_batch(date(2026, 4, 1))
+
+    monkeypatch.setattr(
+        "data.workers.bank_credit_card_ops_worker.fetch_card_counts_batch",
+        fake_fetch_card_counts_batch,
+    )
+
+    rows_synced = asyncio.run(
+        sync_card_counts_once(
+            None,
+            sb,
+            config=config,
+            run_date=date(2026, 4, 24),
+        )
+    )
+
+    assert rows_synced == 4
+    assert sb.upserts[4]["table"] == "bank_credit_card_counts_raw"
+    assert sb.upserts[5]["table"] == "bank_credit_card_counts_curated"
+    assert sb.upserts[5]["payload"][0]["total_active_cards"] == "110"
+    assert sb.upserts[-1]["payload"]["latest_curated_month"] == "2026-04-01"
+
+
+def test_sync_all_bank_credit_card_ops_once_includes_card_counts(monkeypatch):
+    configs = [_config(BANK_CREDIT_CARD_OPS_COMPRAS_DATASET, "Compras")]
+    sb = FakeSupabase()
+    count_config = _counts_config()
+
+    async def fake_sync_operation_once(_client, _sb, *, config, run_date):
+        return 3
+
+    async def fake_sync_card_counts_once(_client, _sb, *, config, run_date):
+        return 4
+
+    monkeypatch.setattr(
+        "data.workers.bank_credit_card_ops_worker.sync_operation_once",
+        fake_sync_operation_once,
+    )
+    monkeypatch.setattr(
+        "data.workers.bank_credit_card_ops_worker.sync_card_counts_once",
+        fake_sync_card_counts_once,
+    )
+
+    results = asyncio.run(
+        sync_all_bank_credit_card_ops_once(
+            None,
+            sb,
+            config=BankCreditCardOpsWorkerConfig(
+                supabase_url="https://supabase.example",
+                supabase_service_role_key="service-role",
+                endpoint_base="https://cmf.example",
+            ),
+            run_date=date(2026, 4, 24),
+            operations=configs,
+            card_counts=count_config,
+        )
+    )
+
+    assert results == {
+        BANK_CREDIT_CARD_COUNTS_DATASET: 4,
+        BANK_CREDIT_CARD_OPS_COMPRAS_DATASET: 3,
     }

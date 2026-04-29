@@ -9,22 +9,30 @@ import {
   fetchCreditCardMetrics,
   fetchDatasetBoundary,
   fetchLatestUfValue,
+  fetchOperationsRateBoundary,
+  fetchOperationsRateMetrics,
+  type OperationsRateMetricRow,
 } from "@/lib/supabase-queries";
 import {
-  chartViewByKey,
   chartViews,
+  defaultOperationsRateViewKey,
   defaultViewKey,
   isChartViewKey,
+  isOperationsRateOperation,
+  isOperationsRateViewKey,
   operationLabelMap,
+  operationsRateViews,
   type ChartViewKey,
   type OperationName,
+  type OperationsRateViewKey,
 } from "@/lib/credit-card-config";
 import {
   addMonths,
   buildMonthOptions,
   calculateMarketShares,
-  formatMonthLabel,
+  formatDecimal,
   formatMoney,
+  formatMonthLabel,
   formatPercent,
   getChileTodayIso,
   normalizeMonthValue,
@@ -41,22 +49,32 @@ type CreditCardsDashboardProps = {
 type BoundaryState = {
   earliestMonth: string;
   latestMonth: string;
-  defaultUfValue: number;
-  defaultUfDate: string;
+  defaultUfValue: number | null;
+  defaultUfDate: string | null;
 };
+
+type MetricType = "money" | "count" | "decimal" | "ratio";
 
 export function CreditCardsDashboard({
   operation,
   operationSlug,
   initialView,
 }: CreditCardsDashboardProps) {
-  const initialViewKey = isChartViewKey(initialView) ? initialView : defaultViewKey;
+  const isOperationsRateDashboard = isOperationsRateOperation(operation);
+  const initialMetricKey = isOperationsRateDashboard
+    ? isOperationsRateViewKey(initialView)
+      ? initialView
+      : defaultOperationsRateViewKey
+    : isChartViewKey(initialView)
+      ? initialView
+      : defaultViewKey;
 
-  const [viewKey, setViewKey] = useState<ChartViewKey>(initialViewKey);
+  const [viewKey, setViewKey] = useState<ChartViewKey | OperationsRateViewKey>(initialMetricKey);
   const [boundaryState, setBoundaryState] = useState<BoundaryState | null>(null);
   const [startMonth, setStartMonth] = useState("");
   const [endMonth, setEndMonth] = useState("");
-  const [rows, setRows] = useState<CreditCardMetricRow[]>([]);
+  const [operationRows, setOperationRows] = useState<CreditCardMetricRow[]>([]);
+  const [operationsRateRows, setOperationsRateRows] = useState<OperationsRateMetricRow[]>([]);
   const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
   const [ufInput, setUfInput] = useState("");
   const [isLoadingBounds, setIsLoadingBounds] = useState(true);
@@ -64,8 +82,16 @@ export function CreditCardsDashboard({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    setViewKey(isChartViewKey(initialView) ? initialView : defaultViewKey);
-  }, [initialView]);
+    setViewKey(
+      isOperationsRateDashboard
+        ? isOperationsRateViewKey(initialView)
+          ? initialView
+          : defaultOperationsRateViewKey
+        : isChartViewKey(initialView)
+          ? initialView
+          : defaultViewKey
+    );
+  }, [initialView, isOperationsRateDashboard]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -73,9 +99,41 @@ export function CreditCardsDashboard({
     async function loadBoundaries() {
       setIsLoadingBounds(true);
       setErrorMessage(null);
-      setRows([]);
+      setOperationRows([]);
+      setOperationsRateRows([]);
 
       try {
+        if (isOperationsRateDashboard) {
+          const [latestMonth, earliestMonth] = await Promise.all([
+            fetchOperationsRateBoundary("latest"),
+            fetchOperationsRateBoundary("earliest"),
+          ]);
+
+          if (!latestMonth || !earliestMonth) {
+            throw new Error("No operations-rate data is available.");
+          }
+
+          const boundedStart = normalizeMonthValue(
+            addMonths(parseMonthValue(latestMonth), -11).toISOString().slice(0, 7)
+          );
+          const safeStart =
+            boundedStart < earliestMonth.slice(0, 7) ? earliestMonth.slice(0, 7) : boundedStart;
+
+          if (!isCancelled) {
+            setBoundaryState({
+              earliestMonth: earliestMonth.slice(0, 7),
+              latestMonth: latestMonth.slice(0, 7),
+              defaultUfDate: null,
+              defaultUfValue: null,
+            });
+            setStartMonth(safeStart);
+            setEndMonth(latestMonth.slice(0, 7));
+            setUfInput("");
+          }
+
+          return;
+        }
+
         const chileToday = getChileTodayIso();
         const [latestMonth, earliestMonth, latestUf] = await Promise.all([
           fetchDatasetBoundary(operation, "latest"),
@@ -88,11 +146,10 @@ export function CreditCardsDashboard({
         }
 
         const boundedStart = normalizeMonthValue(
-          addMonths(parseMonthValue(latestMonth), -11)
-            .toISOString()
-            .slice(0, 7)
+          addMonths(parseMonthValue(latestMonth), -11).toISOString().slice(0, 7)
         );
-        const safeStart = boundedStart < earliestMonth.slice(0, 7) ? earliestMonth.slice(0, 7) : boundedStart;
+        const safeStart =
+          boundedStart < earliestMonth.slice(0, 7) ? earliestMonth.slice(0, 7) : boundedStart;
 
         if (!isCancelled) {
           setBoundaryState({
@@ -121,7 +178,7 @@ export function CreditCardsDashboard({
     return () => {
       isCancelled = true;
     };
-  }, [operation]);
+  }, [isOperationsRateDashboard, operation]);
 
   useEffect(() => {
     if (!startMonth || !endMonth) {
@@ -135,6 +192,20 @@ export function CreditCardsDashboard({
       setErrorMessage(null);
 
       try {
+        if (isOperationsRateDashboard) {
+          const nextRows = await fetchOperationsRateMetrics(`${startMonth}-01`, `${endMonth}-01`);
+
+          if (!nextRows.length) {
+            throw new Error("The selected time range returned no rows.");
+          }
+
+          if (!isCancelled) {
+            setOperationsRateRows(nextRows);
+            setOperationRows([]);
+          }
+          return;
+        }
+
         const nextRows = await fetchCreditCardMetrics(operation, `${startMonth}-01`, `${endMonth}-01`);
 
         if (!nextRows.length) {
@@ -142,11 +213,13 @@ export function CreditCardsDashboard({
         }
 
         if (!isCancelled) {
-          setRows(nextRows);
+          setOperationRows(nextRows);
+          setOperationsRateRows([]);
         }
       } catch (error) {
         if (!isCancelled) {
-          setRows([]);
+          setOperationRows([]);
+          setOperationsRateRows([]);
           setErrorMessage(error instanceof Error ? error.message : "Unable to load credit-card metrics.");
         }
       } finally {
@@ -161,7 +234,7 @@ export function CreditCardsDashboard({
     return () => {
       isCancelled = true;
     };
-  }, [operation, startMonth, endMonth]);
+  }, [endMonth, isOperationsRateDashboard, operation, startMonth]);
 
   const activeUfValue = useMemo(() => {
     const parsed = Number(ufInput.replace(/\./g, "").replace(",", "."));
@@ -170,10 +243,20 @@ export function CreditCardsDashboard({
 
   const months = useMemo(() => buildMonthOptions(startMonth, endMonth), [startMonth, endMonth]);
 
-  const activeMetric = chartViews.find((item) => item.key === viewKey) ?? chartViews[0];
+  const activeMetric = isOperationsRateDashboard
+    ? operationsRateViews.find((item) => item.key === viewKey) ?? operationsRateViews[0]
+    : chartViews.find((item) => item.key === viewKey) ?? chartViews[0];
+
   const loadedMonthKeys = useMemo(
-    () => Array.from(new Set(rows.map((row) => row.period_month.slice(0, 7)))).sort(),
-    [rows]
+    () =>
+      Array.from(
+        new Set(
+          (isOperationsRateDashboard ? operationsRateRows : operationRows).map((row) =>
+            row.period_month.slice(0, 7)
+          )
+        )
+      ).sort(),
+    [isOperationsRateDashboard, operationRows, operationsRateRows]
   );
   const latestLoadedMonth = loadedMonthKeys.at(-1) ?? null;
 
@@ -181,22 +264,38 @@ export function CreditCardsDashboard({
     const grouped = new Map<string, Record<string, number | null>>();
     const bankNames = new Map<string, string>();
 
-    rows.forEach((row) => {
-      const monthKey = row.period_month.slice(0, 7);
-      const metricValue =
-        viewKey === "volume"
-          ? Number(row.real_value_uf) * activeUfValue
-          : viewKey === "transactions"
-            ? Number(row.transaction_count)
-            : Number(row.average_ticket_uf) * activeUfValue;
+    if (isOperationsRateDashboard) {
+      operationsRateRows.forEach((row) => {
+        const monthKey = row.period_month.slice(0, 7);
+        const metricValue = getOperationsRateMetricValue(
+          row,
+          viewKey as OperationsRateViewKey
+        );
 
-      const bankMonths = grouped.get(row.institution_code) ?? Object.fromEntries(
-        months.map((month) => [month, null])
-      ) as Record<string, number | null>;
-      bankMonths[monthKey] = metricValue;
-      grouped.set(row.institution_code, bankMonths);
-      bankNames.set(row.institution_code, row.institution_name);
-    });
+        const bankMonths =
+          grouped.get(row.institution_code) ??
+          (Object.fromEntries(months.map((month) => [month, null])) as Record<string, number | null>);
+        bankMonths[monthKey] = metricValue;
+        grouped.set(row.institution_code, bankMonths);
+        bankNames.set(row.institution_code, row.institution_name);
+      });
+    } else {
+      operationRows.forEach((row) => {
+        const monthKey = row.period_month.slice(0, 7);
+        const metricValue = getOperationMetricValue(
+          row,
+          viewKey as ChartViewKey,
+          activeUfValue
+        );
+
+        const bankMonths =
+          grouped.get(row.institution_code) ??
+          (Object.fromEntries(months.map((month) => [month, null])) as Record<string, number | null>);
+        bankMonths[monthKey] = metricValue;
+        grouped.set(row.institution_code, bankMonths);
+        bankNames.set(row.institution_code, row.institution_name);
+      });
+    }
 
     return Array.from(grouped.entries())
       .map(([institutionCode, series]) => ({
@@ -205,12 +304,10 @@ export function CreditCardsDashboard({
         series,
       }))
       .sort((left, right) => left.institutionName.localeCompare(right.institutionName));
-  }, [activeUfValue, months, rows, viewKey]);
-
-  const latestVisibleMonth = latestLoadedMonth;
+  }, [activeUfValue, isOperationsRateDashboard, months, operationRows, operationsRateRows, viewKey]);
 
   useEffect(() => {
-    if (!bankSeries.length || !latestVisibleMonth) {
+    if (!bankSeries.length || !latestLoadedMonth) {
       setSelectedBanks([]);
       return;
     }
@@ -218,7 +315,7 @@ export function CreditCardsDashboard({
     const ranked = bankSeries
       .map((bank) => ({
         institutionCode: bank.institutionCode,
-        value: bank.series[latestVisibleMonth],
+        value: bank.series[latestLoadedMonth],
       }))
       .filter((bank): bank is { institutionCode: string; value: number } => typeof bank.value === "number")
       .sort((left, right) => right.value - left.value)
@@ -226,7 +323,7 @@ export function CreditCardsDashboard({
       .map((item) => item.institutionCode);
 
     setSelectedBanks(ranked);
-  }, [bankSeries, latestVisibleMonth, operation, viewKey, startMonth, endMonth]);
+  }, [bankSeries, latestLoadedMonth, operation, startMonth, endMonth, viewKey]);
 
   const selectedSeries = useMemo(
     () => bankSeries.filter((bank) => selectedBanks.includes(bank.institutionCode)),
@@ -234,19 +331,24 @@ export function CreditCardsDashboard({
   );
 
   const latestMonthRows = useMemo(
-    () => rows.filter((row) => latestVisibleMonth !== null && row.period_month.slice(0, 7) === latestVisibleMonth),
-    [latestVisibleMonth, rows]
+    () =>
+      (isOperationsRateDashboard ? operationsRateRows : operationRows).filter(
+        (row) => latestLoadedMonth !== null && row.period_month.slice(0, 7) === latestLoadedMonth
+      ),
+    [isOperationsRateDashboard, latestLoadedMonth, operationRows, operationsRateRows]
   );
 
   const summaryRows = useMemo(() => {
-    const bankMap = new Map(
-      selectedSeries.map((bank) => [bank.institutionCode, bank.institutionName] as const)
-    );
+    const bankMap = new Map(selectedSeries.map((bank) => [bank.institutionCode, bank.institutionName] as const));
 
     const totals = latestMonthRows.reduce(
       (accumulator, row) => {
-        accumulator.volume += Number(row.real_value_uf) * activeUfValue;
-        accumulator.transactions += Number(row.transaction_count);
+        if (isOperationsRateDashboard) {
+          return accumulator;
+        }
+
+        accumulator.volume += Number((row as CreditCardMetricRow).real_value_uf) * activeUfValue;
+        accumulator.transactions += Number((row as CreditCardMetricRow).transaction_count);
         return accumulator;
       },
       { volume: 0, transactions: 0 }
@@ -259,21 +361,23 @@ export function CreditCardsDashboard({
           return null;
         }
 
-        const volumeValue = Number(row.real_value_uf) * activeUfValue;
-        const transactionsValue = Number(row.transaction_count);
-        const averageTicketValue = Number(row.average_ticket_uf) * activeUfValue;
-        const currentValue =
-          viewKey === "volume"
-            ? volumeValue
-            : viewKey === "transactions"
-              ? transactionsValue
-              : averageTicketValue;
+        const currentValue = isOperationsRateDashboard
+          ? getOperationsRateMetricValue(row as OperationsRateMetricRow, viewKey as OperationsRateViewKey)
+          : getOperationMetricValue(row as CreditCardMetricRow, viewKey as ChartViewKey, activeUfValue);
+
+        if (currentValue === null) {
+          return null;
+        }
 
         const share =
-          viewKey === "average-ticket"
+          isOperationsRateDashboard ||
+          viewKey === "average-ticket" ||
+          viewKey === "operations-per-active-card"
             ? null
             : calculateMarketShares(
-                viewKey === "volume" ? volumeValue : transactionsValue,
+                viewKey === "volume"
+                  ? Number((row as CreditCardMetricRow).real_value_uf) * activeUfValue
+                  : Number((row as CreditCardMetricRow).transaction_count),
                 viewKey === "volume" ? totals.volume : totals.transactions
               );
 
@@ -286,7 +390,7 @@ export function CreditCardsDashboard({
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row))
       .sort((left, right) => right.currentValue - left.currentValue);
-  }, [activeUfValue, latestMonthRows, selectedBanks, selectedSeries, viewKey]);
+  }, [activeUfValue, isOperationsRateDashboard, latestMonthRows, selectedBanks, selectedSeries, viewKey]);
 
   const availableMonthOptions = useMemo(() => {
     if (!boundaryState) {
@@ -300,7 +404,7 @@ export function CreditCardsDashboard({
     return <LoadingState label="Loading dashboard configuration" />;
   }
 
-  if (errorMessage && !rows.length) {
+  if (errorMessage && !operationRows.length && !operationsRateRows.length) {
     return <ErrorState title="Unable to load the dashboard" description={errorMessage} />;
   }
 
@@ -308,7 +412,7 @@ export function CreditCardsDashboard({
     return <EmptyState title="No data available" description="No operation metadata was returned." />;
   }
 
-  if (!latestVisibleMonth && !isLoadingRows) {
+  if (!latestLoadedMonth && !isLoadingRows) {
     return <EmptyState title="No loaded data" description="The selected time range did not return any complete points." />;
   }
 
@@ -320,12 +424,14 @@ export function CreditCardsDashboard({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand">Credit Cards</p>
             <h1 className="mt-3 text-3xl font-semibold text-white">{operationLabelMap[operation]}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">
-              Shareable route: <span className="text-white">/credit-cards/{operationSlug}</span>. Data comes from the
-              public unified operations view and uses UF-adjusted CLP where applicable.
+              Shareable route: <span className="text-white">/credit-cards/{operationSlug}</span>.{" "}
+              {isOperationsRateDashboard
+                ? "Data comes from the public operations-rate view over monthly active cards and cards with operations."
+                : "Data comes from the public unified operations view and uses UF-adjusted CLP where applicable."}
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className={cn("grid gap-3", isOperationsRateDashboard ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
             <ControlCard label="Start (MM/YY)">
               <select
                 value={startMonth}
@@ -352,14 +458,16 @@ export function CreditCardsDashboard({
                 ))}
               </select>
             </ControlCard>
-            <ControlCard label={`UF (${boundaryState.defaultUfDate})`}>
-              <input
-                value={ufInput}
-                onChange={(event) => setUfInput(event.target.value)}
-                inputMode="decimal"
-                className="w-full rounded-2xl border border-border bg-panelMuted px-3 py-2 text-sm text-white outline-none transition focus:border-brand/60"
-              />
-            </ControlCard>
+            {!isOperationsRateDashboard ? (
+              <ControlCard label={`UF (${boundaryState.defaultUfDate})`}>
+                <input
+                  value={ufInput}
+                  onChange={(event) => setUfInput(event.target.value)}
+                  inputMode="decimal"
+                  className="w-full rounded-2xl border border-border bg-panelMuted px-3 py-2 text-sm text-white outline-none transition focus:border-brand/60"
+                />
+              </ControlCard>
+            ) : null}
           </div>
         </div>
       </div>
@@ -372,12 +480,12 @@ export function CreditCardsDashboard({
                 <h2 className="text-xl font-semibold text-white">{activeMetric.label}</h2>
                 <p className="mt-2 text-sm text-muted">
                   {formatMonthLabel(startMonth)} to {formatMonthLabel(endMonth)} · latest loaded month{" "}
-                  {latestVisibleMonth ? formatMonthLabel(latestVisibleMonth) : "—"}
+                  {latestLoadedMonth ? formatMonthLabel(latestLoadedMonth) : "—"}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {chartViews.map((item) => (
+                {(isOperationsRateDashboard ? operationsRateViews : chartViews).map((item) => (
                   <button
                     key={item.key}
                     type="button"
@@ -412,7 +520,7 @@ export function CreditCardsDashboard({
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-white">Latest visible month table</h3>
-                <p className="mt-1 text-sm text-muted">{latestVisibleMonth ? formatMonthLabel(latestVisibleMonth) : "—"}</p>
+                <p className="mt-1 text-sm text-muted">{latestLoadedMonth ? formatMonthLabel(latestLoadedMonth) : "—"}</p>
               </div>
               <div className="rounded-full border border-border bg-panelMuted px-4 py-2 text-xs uppercase tracking-[0.2em] text-muted">
                 {selectedBanks.length} selected
@@ -432,7 +540,9 @@ export function CreditCardsDashboard({
                   {summaryRows.map((row) => (
                     <tr key={row.institutionCode} className="border-b border-border/60">
                       <td className="py-3 pr-4 text-white">{row.institutionName}</td>
-                      <td className="py-3 pr-4 text-white">{formatMoney(row.currentValue)}</td>
+                      <td className="py-3 pr-4 text-white">
+                        {formatMetricValue(row.currentValue, activeMetric.metricType)}
+                      </td>
                       <td className="py-3 text-white">{row.share === null ? "—" : formatPercent(row.share)}</td>
                     </tr>
                   ))}
@@ -446,17 +556,71 @@ export function CreditCardsDashboard({
           banks={bankSeries.map((bank) => ({
             institutionCode: bank.institutionCode,
             institutionName: bank.institutionName,
-            latestValue: latestVisibleMonth ? bank.series[latestVisibleMonth] : null,
+            latestValue: latestLoadedMonth ? bank.series[latestLoadedMonth] : null,
           }))}
           metricLabel={activeMetric.label}
+          metricType={activeMetric.metricType}
           selectedBanks={selectedBanks}
           onChange={setSelectedBanks}
         />
       </div>
 
-      {errorMessage && rows.length ? <ErrorState title="Partial data issue" description={errorMessage} compact /> : null}
+      {errorMessage && (operationRows.length || operationsRateRows.length) ? (
+        <ErrorState title="Partial data issue" description={errorMessage} compact />
+      ) : null}
     </section>
   );
+}
+
+function getOperationMetricValue(
+  row: CreditCardMetricRow,
+  viewKey: ChartViewKey,
+  activeUfValue: number
+): number | null {
+  if (viewKey === "volume") {
+    return Number(row.real_value_uf) * activeUfValue;
+  }
+  if (viewKey === "transactions") {
+    return Number(row.transaction_count);
+  }
+  if (viewKey === "average-ticket") {
+    return Number(row.average_ticket_uf) * activeUfValue;
+  }
+  if (viewKey === "operations-per-active-card") {
+    return row.operations_per_active_card === null ? null : Number(row.operations_per_active_card);
+  }
+
+  return null;
+}
+
+function getOperationsRateMetricValue(
+  row: OperationsRateMetricRow,
+  viewKey: OperationsRateViewKey
+): number | null {
+  if (viewKey === "total-active-cards") {
+    return Number(row.total_active_cards);
+  }
+  if (viewKey === "total-cards-with-operations") {
+    return Number(row.total_cards_with_operations);
+  }
+  if (viewKey === "operations-rate") {
+    return row.operations_rate === null ? null : Number(row.operations_rate) * 100;
+  }
+
+  return null;
+}
+
+function formatMetricValue(value: number, metricType: MetricType): string {
+  if (metricType === "money") {
+    return formatMoney(value);
+  }
+  if (metricType === "ratio") {
+    return formatPercent(value);
+  }
+  if (metricType === "decimal") {
+    return formatDecimal(value);
+  }
+  return formatMoney(value);
 }
 
 function ControlCard({ label, children }: { label: string; children: React.ReactNode }) {

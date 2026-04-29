@@ -5,7 +5,14 @@ from typing import Any
 from urllib.parse import urlencode
 
 from data.models.bank_credit_card_operations import (
+    BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
+    BANK_CREDIT_CARD_ACTIVE_CARDS_SUPPLEMENTARY_DATASET,
+    BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET,
+    BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET,
     BankCreditCardOperationConfig,
+    BankCreditCardCountObservation,
+    BankCreditCardCountRawObservation,
+    BankCreditCardCountsConfig,
     BankCreditCardOpsMeasureObservation,
     BankCreditCardOpsRawObservation,
 )
@@ -15,8 +22,20 @@ from data.models.bank_credit_card_operations import (
 class BankCreditCardOpsObservationBatch:
     raw_observations: list[BankCreditCardOpsRawObservation]
     latest_source_month: date | None
+    earliest_source_month: date | None
     latest_transaction_count_source_month: date | None
     latest_nominal_volume_source_month: date | None
+
+
+@dataclass(frozen=True)
+class BankCreditCardCountsObservationBatch:
+    raw_observations: list[BankCreditCardCountRawObservation]
+    latest_source_month: date | None
+    earliest_source_month: date | None
+    latest_active_cards_primary_source_month: date | None
+    latest_active_cards_supplementary_source_month: date | None
+    latest_cards_with_operations_primary_source_month: date | None
+    latest_cards_with_operations_supplementary_source_month: date | None
 
 
 def build_cmf_cuadros_url(
@@ -115,6 +134,49 @@ def parse_transaction_count_payload(
             observations.append(
                 BankCreditCardOpsMeasureObservation(
                     operation_type=operation_type,
+                    dataset_code=dataset_code,
+                    source_series_id=source_series_id,
+                    source_codigo=source_codigo,
+                    source_nombre=source_nombre,
+                    institution_code=institution_code,
+                    institution_name=source_nombre,
+                    period_month=normalize_period_month(
+                        _first_present(point, "Fecha", "fecha", "period", "Periodo")
+                    ),
+                    value=parse_cmf_numeric(_first_present(point, "Valor", "valor", "value")),
+                    source_payload=point,
+                )
+            )
+
+    return sorted(
+        observations,
+        key=lambda observation: (observation.institution_code, observation.period_month),
+    )
+
+
+def parse_card_count_payload(
+    payload: dict[str, Any],
+    *,
+    dataset_code: str,
+) -> list[BankCreditCardCountObservation]:
+    observations: list[BankCreditCardCountObservation] = []
+
+    for series in _get_series(payload):
+        source_codigo = _first_present(series, "Codigo", "codigo", "source_codigo")
+        institution_code = derive_institution_code(source_codigo)
+        source_nombre = _first_present(
+            series,
+            "descripcionCorta",
+            "DescripcionCorta",
+            "Nombre",
+            "nombre",
+            "source_nombre",
+        )
+        source_series_id = str(_first_present(series, "id", "Id", "source_series_id"))
+
+        for point in _get_observations(series):
+            observations.append(
+                BankCreditCardCountObservation(
                     dataset_code=dataset_code,
                     source_series_id=source_series_id,
                     source_codigo=source_codigo,
@@ -280,6 +342,28 @@ async def fetch_nominal_volume_observations(
     )
 
 
+async def fetch_card_count_observations(
+    client,
+    *,
+    endpoint_base: str,
+    tag: str,
+    fecha_inicio: str,
+    fecha_fin: date,
+    dataset_code: str,
+) -> list[BankCreditCardCountObservation]:
+    response = await client.get(
+        build_cmf_cuadros_url(
+            endpoint_base=endpoint_base,
+            tag=tag,
+            fecha_fin=fecha_fin,
+            fecha_inicio=fecha_inicio,
+        ),
+        timeout=30,
+    )
+    response.raise_for_status()
+    return parse_card_count_payload(response.json(), dataset_code=dataset_code)
+
+
 async def fetch_operation_batch(
     client,
     *,
@@ -329,8 +413,122 @@ async def fetch_operation_batch(
     return BankCreditCardOpsObservationBatch(
         raw_observations=raw_observations,
         latest_source_month=latest_source_month,
+        earliest_source_month=min(
+            (observation.period_month for observation in raw_observations),
+            default=None,
+        ),
         latest_transaction_count_source_month=latest_transaction_count_source_month,
         latest_nominal_volume_source_month=latest_nominal_volume_source_month,
+    )
+
+
+def to_card_count_raw_observations(
+    observations: list[BankCreditCardCountObservation],
+) -> list[BankCreditCardCountRawObservation]:
+    return [
+        BankCreditCardCountRawObservation(
+            dataset_code=observation.dataset_code,
+            source_series_id=observation.source_series_id,
+            source_codigo=observation.source_codigo,
+            source_nombre=observation.source_nombre,
+            institution_code=observation.institution_code,
+            institution_name=observation.institution_name,
+            period_month=observation.period_month,
+            card_count=observation.value,
+            source_payload=observation.source_payload,
+        )
+        for observation in observations
+    ]
+
+
+async def fetch_card_counts_batch(
+    client,
+    *,
+    config: BankCreditCardCountsConfig,
+    fecha_fin: date,
+) -> BankCreditCardCountsObservationBatch:
+    active_primary = await fetch_card_count_observations(
+        client,
+        endpoint_base=config.source_endpoint_base,
+        tag=config.active_cards_primary_source_tag,
+        fecha_inicio=config.start_date.strftime("%Y%m%d"),
+        fecha_fin=fecha_fin,
+        dataset_code=config.active_cards_primary_dataset_code,
+    )
+    active_supplementary = await fetch_card_count_observations(
+        client,
+        endpoint_base=config.source_endpoint_base,
+        tag=config.active_cards_supplementary_source_tag,
+        fecha_inicio=config.start_date.strftime("%Y%m%d"),
+        fecha_fin=fecha_fin,
+        dataset_code=config.active_cards_supplementary_dataset_code,
+    )
+    operating_primary = await fetch_card_count_observations(
+        client,
+        endpoint_base=config.source_endpoint_base,
+        tag=config.cards_with_operations_primary_source_tag,
+        fecha_inicio=config.start_date.strftime("%Y%m%d"),
+        fecha_fin=fecha_fin,
+        dataset_code=config.cards_with_operations_primary_dataset_code,
+    )
+    operating_supplementary = await fetch_card_count_observations(
+        client,
+        endpoint_base=config.source_endpoint_base,
+        tag=config.cards_with_operations_supplementary_source_tag,
+        fecha_inicio=config.start_date.strftime("%Y%m%d"),
+        fecha_fin=fecha_fin,
+        dataset_code=config.cards_with_operations_supplementary_dataset_code,
+    )
+    raw_observations = [
+        *to_card_count_raw_observations(active_primary),
+        *to_card_count_raw_observations(active_supplementary),
+        *to_card_count_raw_observations(operating_primary),
+        *to_card_count_raw_observations(operating_supplementary),
+    ]
+
+    return BankCreditCardCountsObservationBatch(
+        raw_observations=sorted(
+            raw_observations,
+            key=lambda observation: (
+                observation.dataset_code,
+                observation.institution_code,
+                observation.period_month,
+            ),
+        ),
+        latest_source_month=max(
+            (
+                *(observation.period_month for observation in active_primary),
+                *(observation.period_month for observation in active_supplementary),
+                *(observation.period_month for observation in operating_primary),
+                *(observation.period_month for observation in operating_supplementary),
+            ),
+            default=None,
+        ),
+        earliest_source_month=min(
+            (
+                *(observation.period_month for observation in active_primary),
+                *(observation.period_month for observation in active_supplementary),
+                *(observation.period_month for observation in operating_primary),
+                *(observation.period_month for observation in operating_supplementary),
+            ),
+            default=None,
+        ),
+        latest_active_cards_primary_source_month=max(
+            (observation.period_month for observation in active_primary),
+            default=None,
+        ),
+        latest_active_cards_supplementary_source_month=max(
+            (observation.period_month for observation in active_supplementary),
+            default=None,
+        ),
+        latest_cards_with_operations_primary_source_month=max(
+            (observation.period_month for observation in operating_primary),
+            default=None,
+        ),
+        latest_cards_with_operations_supplementary_source_month=max(
+            (observation.period_month for observation in operating_supplementary),
+            default=None,
+        ),
     )
 
 
