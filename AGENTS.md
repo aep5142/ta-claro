@@ -90,6 +90,7 @@ This repo contains two active ETL subsystems:
   - no-ops only when both endpoint source months are unchanged
   - writes unified raw rows
   - writes unified curated rows
+  - enriches curated ops rows with `total_active_cards` from `public.bank_credit_card_counts_curated` (be careful to paginate Supabase/PostgREST reads; default page limits can silently truncate lookups)
   - records success or failure on both endpoint sync-state rows
 - For `Operations Rate` it writes the monthly bank-level totals needed by the public operations-rate view.
 - Failed runs do not advance sync state.
@@ -264,7 +265,7 @@ This repo contains two active ETL subsystems:
 - `Operations Rate` at `/credit-cards/operations-rate`
 - Credit-card demo behavior:
   - analysis tab is route-shareable via the `view` query param
-  - render `Volume ($)`, `Transactions (#)`, and `Average Transaction (CLP)`
+  - render submetrics: `Volume`, `Transactions`, `Avg. Transaction`, `Operations per Active Card`
   - render `Operations per Active Card` on the operation pages
   - render `Total Active Cards`, `Total Cards with Operations`, and `Operations Rate` on the operations-rate page
   - main visualization is a multi-bank line chart over time
@@ -277,7 +278,7 @@ This repo contains two active ETL subsystems:
   - the sidebar uses a `Credit Cards` macro title and no `Live` badges
   - the dashboard copy describes the product instead of repeating the shareable route
   - use UF-adjusted CLP volume for `Volume ($)`
-  - the UF control is labeled `UF today`, uses a fixed `$` prefix, and formats thousands with `.`
+  - the UF control is labeled `UF value`, uses a fixed `$` prefix, and formats thousands with `.`
   - default UF is the latest UF up to today in `America/Santiago`
   - allow a user-entered UF override for CLP conversions without resetting bank selection
   - omit last-visible/last-loaded month copy because the range is already shown by Start and End
@@ -286,7 +287,7 @@ This repo contains two active ETL subsystems:
   - the layout uses the full available width and the chart does not require horizontal scrolling
   - when the selected range has a single month, the visualization switches to a horizontal bar chart sorted descending by value
   - single-month bar labels stay outside the bars and reserve right-side space so the biggest value never clips
-  - chart hover tooltips include a `XX% of the system` line computed from system-wide month totals, not from the selected banks
+  - chart hover tooltips include a `XX% of the system` line computed from system-wide month totals, not from the selected banks (omit this line for `Transactions`)
   - money values render with a fixed `$` prefix instead of a trailing `CLP`
   - point markers shrink for long date ranges
   - money display uses integer values with `.` thousands separators
