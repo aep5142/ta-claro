@@ -220,19 +220,31 @@ def latest_observation_month(observations: list[BankCreditCardOpsRawObservation]
 
 
 def build_active_cards_lookup(sb):
-    response = (
-        sb.table("bank_credit_card_counts_curated")
-        .select("institution_code,period_month,total_active_cards")
-        .eq("dataset_code", BANK_CREDIT_CARD_COUNTS_DATASET)
-        .execute()
-    )
-    totals = {
-        (row["institution_code"], date.fromisoformat(row["period_month"])): Decimal(
-            str(row["total_active_cards"])
+    page_size = 1000
+    offset = 0
+    totals: dict[tuple[str, date], Decimal] = {}
+
+    while True:
+        response = (
+            sb.table("bank_credit_card_counts_curated")
+            .select("institution_code,period_month,total_active_cards")
+            .eq("dataset_code", BANK_CREDIT_CARD_COUNTS_DATASET)
+            .order("institution_code", desc=False)
+            .order("period_month", desc=False)
+            .range(offset, offset + page_size - 1)
+            .execute()
         )
-        for row in response.data or []
-        if row.get("total_active_cards") is not None
-    }
+        rows = response.data or []
+        for row in rows:
+            if row.get("total_active_cards") is None:
+                continue
+            totals[(row["institution_code"], date.fromisoformat(row["period_month"]))] = Decimal(
+                str(row["total_active_cards"])
+            )
+
+        if len(rows) < page_size:
+            break
+        offset += page_size
 
     def lookup(institution_code: str, period_month: date) -> Decimal | None:
         return totals.get((institution_code, period_month))

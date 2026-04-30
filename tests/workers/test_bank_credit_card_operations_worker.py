@@ -33,6 +33,7 @@ from data.sources.bank_credit_card_operations import (
 )
 from data.workers.bank_credit_card_ops_worker import (
     BankCreditCardOpsWorkerConfig,
+    build_active_cards_lookup,
     load_active_card_counts_config,
     load_active_operation_configs,
     sync_card_counts_once,
@@ -51,6 +52,7 @@ class FakeTable:
         self.name = name
         self.db = db
         self._eq_filter = None
+        self._range = None
         self._upsert_payload = None
         self._upsert_kwargs = None
 
@@ -65,6 +67,11 @@ class FakeTable:
         return self
 
     def order(self, *_args, **_kwargs):
+        return self
+
+    def range(self, start, end):
+        self._range = (start, end)
+        self.db.setdefault("ranges", []).append({"table": self.name, "start": start, "end": end})
         return self
 
     def upsert(self, payload, **kwargs):
@@ -98,6 +105,16 @@ class FakeTable:
         if self.name == "uf_values":
             return FakeResponse(self.db["uf_values"].get(self._eq_filter[1], []))
 
+        if self.name == "bank_credit_card_counts_curated":
+            rows = list(self.db.get("bank_credit_card_counts_curated", []))
+            if self._eq_filter is not None:
+                column, value = self._eq_filter
+                rows = [row for row in rows if row.get(column) == value]
+            if self._range is not None:
+                start, end = self._range
+                rows = rows[start : end + 1]
+            return FakeResponse(rows)
+
         return FakeResponse(self.db.get(self.name, []))
 
 
@@ -115,8 +132,10 @@ class FakeSupabase:
             "states": states or {},
             "uf_values": uf_values or {},
             "count_curated": count_curated or [],
+            "bank_credit_card_counts_curated": count_curated or [],
             "bank_credit_card_ops_curated": ops_curated or [],
             "upserts": [],
+            "ranges": [],
         }
 
     def table(self, name):
@@ -650,3 +669,27 @@ def test_sync_all_bank_credit_card_ops_once_includes_card_counts(monkeypatch):
         BANK_CREDIT_CARD_COUNTS_DATASET: 4,
         BANK_CREDIT_CARD_OPS_COMPRAS_DATASET: 3,
     }
+
+
+def test_build_active_cards_lookup_paginates_for_large_tables():
+    count_curated = []
+    for i in range(1205):
+        year = 2000 + (i // 12)
+        month = 1 + (i % 12)
+        count_curated.append(
+            {
+                "dataset_code": BANK_CREDIT_CARD_COUNTS_DATASET,
+                "institution_code": "TEST",
+                "period_month": date(year, month, 1).isoformat(),
+                "total_active_cards": i + 1,
+            }
+        )
+
+    sb = FakeSupabase(count_curated=count_curated)
+    lookup = build_active_cards_lookup(sb)
+
+    assert lookup("TEST", date(2083, 5, 1)) == Decimal("1001")
+    assert any(
+        call["table"] == "bank_credit_card_counts_curated" and call["start"] == 1000
+        for call in sb.db["ranges"]
+    )
