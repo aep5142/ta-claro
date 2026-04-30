@@ -13,15 +13,21 @@ type MetricLineChartProps = {
     series: Record<string, number | null>;
   }>;
   metricType: "money" | "count" | "decimal" | "ratio";
+  showSystemShare?: boolean;
 };
 
-export function MetricLineChart({ months, systemMonthTotals, series, metricType }: MetricLineChartProps) {
+export function MetricLineChart({
+  months,
+  systemMonthTotals,
+  series,
+  metricType,
+  showSystemShare = true,
+}: MetricLineChartProps) {
   const width = 1120;
   const lineHeight = 360;
   const barRowHeight = 42;
   const barHeight = Math.max(180, series.length * barRowHeight + 70);
   const height = months.length === 1 ? barHeight : lineHeight;
-  const padding = months.length === 1 ? { top: 20, right: 24, bottom: 24, left: 160 } : { top: 18, right: 18, bottom: 42, left: 56 };
   const [hoveredPoint, setHoveredPoint] = useState<{
     institutionName: string;
     month: string;
@@ -47,16 +53,34 @@ export function MetricLineChart({ months, systemMonthTotals, series, metricType 
   const valueRange = maxValue - minValue || 1;
   const barMaxValue = Math.max(...allValues, 1);
 
-  const chartWidth = width - padding.left - padding.right;
-  const chartHeight = height - padding.top - padding.bottom;
   const isSingleMonth = months.length === 1;
   const monthTotals = systemMonthTotals;
+
+  const formatTickLabel = (tick: number) => {
+    if (metricType === "money") {
+      return formatMoneyWithSymbol(tick);
+    }
+    if (metricType === "ratio") {
+      return formatPercent(tick);
+    }
+    if (metricType === "decimal") {
+      return formatDecimal(tick);
+    }
+    return formatMoney(tick);
+  };
+
+  const yTicks = Array.from({ length: 4 }, (_, index) => minValue + (valueRange * index) / 3).reverse();
+  const maxTickLabelLength = Math.max(...yTicks.map((tick) => formatTickLabel(tick).length));
+  const estimatedTickLabelWidth = maxTickLabelLength * 7;
+  const multiMonthLeftPadding = Math.max(56, Math.min(160, estimatedTickLabelWidth + 24));
+  const padding = months.length === 1 ? { top: 20, right: 24, bottom: 24, left: 160 } : { top: 18, right: 18, bottom: 42, left: multiMonthLeftPadding };
+
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
 
   const xForIndex = (index: number) =>
     padding.left + (isSingleMonth ? chartWidth / 2 : (chartWidth * index) / (months.length - 1));
   const yForValue = (value: number) => padding.top + chartHeight - ((value - minValue) / valueRange) * chartHeight;
-
-  const yTicks = Array.from({ length: 4 }, (_, index) => minValue + (valueRange * index) / 3).reverse();
   const pointRadius = months.length > 72 ? 2.2 : months.length > 36 ? 2.8 : months.length > 18 ? 3.4 : 4.2;
   const monthLabelStep = months.length > 96 ? 12 : months.length > 72 ? 6 : months.length > 36 ? 4 : months.length > 24 ? 3 : months.length > 12 ? 2 : 1;
   const singleMonthBanks =
@@ -112,7 +136,9 @@ export function MetricLineChart({ months, systemMonthTotals, series, metricType 
             </div>
             <p className="mt-2 text-xs text-muted">{formatMonthLabel(hoveredPoint.month)}</p>
             <p className="mt-1 text-sm font-medium text-white">{tooltipValueLabel}</p>
-            {tooltipShareLabel ? <p className="mt-1 text-xs italic text-brand">{tooltipShareLabel} of the system</p> : null}
+            {tooltipShareLabel && showSystemShare ? (
+              <p className="mt-1 text-xs italic text-brand">{tooltipShareLabel} of the system</p>
+            ) : null}
           </div>
         ) : null}
 
@@ -198,13 +224,7 @@ export function MetricLineChart({ months, systemMonthTotals, series, metricType 
               <g key={tick}>
                 <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#22344f" strokeDasharray="4 6" />
                 <text x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="11" fill="#95a8c7">
-                  {metricType === "money"
-                    ? formatMoneyWithSymbol(tick)
-                    : metricType === "ratio"
-                      ? formatPercent(tick)
-                      : metricType === "decimal"
-                        ? formatDecimal(tick)
-                        : formatMoneyWithSymbol(tick)}
+                  {formatTickLabel(tick)}
                 </text>
               </g>
             );

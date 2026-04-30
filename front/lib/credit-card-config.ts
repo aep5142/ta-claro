@@ -31,21 +31,21 @@ export const primarySections = [
 export const chartViews = [
   {
     key: "volume",
-    label: "Volume ($)",
+    label: "Volume",
     metricType: "money" as const,
     description: "Monthly credit-card volume for the selected operation.",
     unitLabel: "Millions of CLP. Values are deflated using UF.",
   },
   {
     key: "transactions",
-    label: "Transactions (#)",
+    label: "Transactions",
     metricType: "count" as const,
     description: "Monthly number of card operations for the selected operation.",
     unitLabel: "Number of operations (#).",
   },
   {
     key: "average-ticket",
-    label: "Average Transaction (CLP)",
+    label: "Avg. Transaction",
     metricType: "money" as const,
     description: "Average CLP amount per transaction for the selected operation.",
     unitLabel: "CLP. Values are deflated using UF.",
@@ -54,7 +54,7 @@ export const chartViews = [
     key: "operations-per-active-card",
     label: "Operations per Active Card",
     metricType: "decimal" as const,
-    description: "Transactions per active credit card in the selected month.",
+    description: "Transactions per active credit card.",
     unitLabel: "Number of operations per active card.",
   },
 ] as const;

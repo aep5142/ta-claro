@@ -424,8 +424,25 @@ export function CreditCardsDashboard({
       .filter((row): row is NonNullable<typeof row> => Boolean(row))
       .sort((left, right) => right.currentValue - left.currentValue);
 
-    if (isOperationsRateDashboard || viewKey === "average-ticket" || viewKey === "operations-per-active-card") {
+    if (isOperationsRateDashboard || viewKey === "operations-per-active-card") {
       return selectedRows;
+    }
+
+    if (viewKey === "average-ticket") {
+      const systemAvg =
+        totals.transactions > 0 ? (totals.volume * 1_000_000) / totals.transactions : null;
+
+      return systemAvg === null
+        ? selectedRows
+        : [
+            {
+              institutionCode: "total",
+              institutionName: "System",
+              currentValue: systemAvg,
+              share: null,
+            },
+            ...selectedRows,
+          ];
     }
 
     const selectedTotal = selectedRows.reduce((accumulator, row) => accumulator + row.currentValue, 0);
@@ -514,7 +531,19 @@ export function CreditCardsDashboard({
               </select>
             </ControlCard>
             {!isOperationsRateDashboard ? (
-              <ControlCard label="UF today">
+              <ControlCard
+                label={
+                  <span className="inline-flex items-center gap-2">
+                    UF value
+                    <span className="group relative inline-flex h-4 w-4 items-center justify-center rounded-full border border-current/30 text-[10px] font-semibold leading-none text-current">
+                      i
+                      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-56 -translate-x-1/2 rounded-2xl border border-border bg-[#07101c] p-3 text-left text-xs leading-5 text-muted shadow-2xl group-hover:block">
+                        by default uses today's UF
+                      </span>
+                    </span>
+                  </span>
+                }
+              >
                 <div className="relative">
                   <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted">$</span>
                   <input
@@ -533,7 +562,7 @@ export function CreditCardsDashboard({
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           <div className="rounded-3xl border border-border bg-panel p-6">
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -544,13 +573,20 @@ export function CreditCardsDashboard({
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
                 {(isOperationsRateDashboard ? operationsRateViews : chartViews).map((item) => (
                   <MetricTabButton
                     key={item.key}
                     active={viewKey === item.key}
                     label={item.label}
-                    description={item.description}
+                    description={
+                      !isOperationsRateDashboard
+                        ? item.description.replace(
+                            "for the selected operation",
+                            `for ${operationLabelMap[operation]}`
+                          )
+                        : item.description
+                    }
                     unitLabel={item.unitLabel}
                     onClick={() => setViewKey(item.key)}
                   />
@@ -566,6 +602,7 @@ export function CreditCardsDashboard({
                 systemMonthTotals={systemMonthTotals}
                 series={selectedSeries}
                 metricType={activeMetric.metricType}
+                showSystemShare={viewKey !== "transactions"}
               />
             ) : (
               <EmptyState
@@ -578,7 +615,12 @@ export function CreditCardsDashboard({
 
           <div className="rounded-3xl border border-border bg-panel p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Selected banks</h3>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Selected banks</h3>
+                {latestLoadedMonth ? (
+                  <p className="mt-1 text-xs text-muted">Month: {formatMonthLabel(latestLoadedMonth)}</p>
+                ) : null}
+              </div>
               <div className="rounded-full border border-border bg-panelMuted px-4 py-2 text-xs uppercase tracking-[0.2em] text-muted">
                 {selectedBanks.length} selected
               </div>
@@ -588,7 +630,14 @@ export function CreditCardsDashboard({
               <thead>
                 <tr className="border-b border-border text-muted">
                   <th className="pb-3 pr-4 font-medium">&nbsp;</th>
-                  <th className="pb-3 pr-4 font-medium">{activeMetric.label}</th>
+                  <th
+                    className={cn(
+                      "pb-3 pr-4 font-medium",
+                      viewKey === "average-ticket" ? "text-center" : ""
+                    )}
+                  >
+                    {activeMetric.label}
+                  </th>
                   {summaryRows.some((row) => row.share !== null) ? <th className="pb-3 font-medium">Share</th> : null}
                 </tr>
               </thead>
@@ -611,7 +660,7 @@ export function CreditCardsDashboard({
                     </td>
                     <td
                       className={cn(
-                        "py-3 pr-4",
+                        viewKey === "average-ticket" ? "py-3 px-4 text-center" : "py-3 pr-4",
                         row.institutionCode === "total" ? "text-base font-semibold text-white" : "text-white"
                       )}
                     >
@@ -702,7 +751,7 @@ function formatMetricValue(value: number, metricType: MetricType): string {
   return formatMoney(value);
 }
 
-function ControlCard({ label, children }: { label: string; children: React.ReactNode }) {
+function ControlCard({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="rounded-3xl border border-border bg-panel px-4 py-3">
       <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted">{label}</p>
@@ -729,7 +778,7 @@ function MetricTabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-4 py-2 text-sm font-medium transition",
+        "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition",
         active
           ? "border-brand/60 bg-brand/10 text-white"
           : "border-border bg-panelMuted text-muted hover:text-white"
@@ -737,7 +786,7 @@ function MetricTabButton({
     >
       <span className="inline-flex items-center gap-2">
         {label}
-        <span className="group relative inline-flex h-5 w-5 items-center justify-center rounded-full border border-current/30 text-[10px] font-semibold leading-none text-current transition hover:border-brand/60 hover:text-white focus-visible:border-brand/60 focus-visible:text-white">
+        <span className="group relative inline-flex h-4 w-4 items-center justify-center rounded-full border border-current/30 text-[9px] font-semibold leading-none text-current transition hover:border-brand/60 hover:text-white focus-visible:border-brand/60 focus-visible:text-white">
           i
           <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-2xl border border-border bg-[#07101c] p-3 text-left text-xs leading-5 text-muted shadow-2xl group-hover:block">
             <span className="block text-sm font-semibold text-white">{label}</span>
