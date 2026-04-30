@@ -778,7 +778,7 @@ function MetricTabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition",
+        "group relative shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition",
         active
           ? "border-brand/60 bg-brand/10 text-white"
           : "border-border bg-panelMuted text-muted hover:text-white"
@@ -786,14 +786,14 @@ function MetricTabButton({
     >
       <span className="inline-flex items-center gap-2">
         {label}
-        <span className="group relative inline-flex h-4 w-4 items-center justify-center rounded-full border border-current/30 text-[9px] font-semibold leading-none text-current transition hover:border-brand/60 hover:text-white focus-visible:border-brand/60 focus-visible:text-white">
+        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current/30 text-[9px] font-semibold leading-none text-current transition group-hover:border-brand/60 group-hover:text-white group-focus-visible:border-brand/60 group-focus-visible:text-white">
           i
-          <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-2xl border border-border bg-[#07101c] p-3 text-left text-xs leading-5 text-muted shadow-2xl group-hover:block">
-            <span className="block text-sm font-semibold text-white">{label}</span>
-            <span className="mt-1 block">{description}</span>
-            <span className="mt-1 block text-xs italic text-brand">{unitLabel}</span>
-          </span>
         </span>
+      </span>
+      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-2xl border border-border bg-[#07101c] p-3 text-left text-xs leading-5 text-muted shadow-2xl group-hover:block group-focus-visible:block">
+        <span className="block text-sm font-semibold text-white">{label}</span>
+        <span className="mt-1 block">{description}</span>
+        <span className="mt-1 block text-xs italic text-brand">{unitLabel}</span>
       </span>
     </button>
   );
