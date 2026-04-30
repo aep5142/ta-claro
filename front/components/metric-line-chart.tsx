@@ -335,15 +335,13 @@ export function MetricLineChart({ months, systemMonthTotals, series, metricType 
         ))}
       </div>
 
-      <p className="text-xs text-muted">
-        {metricType === "money"
-          ? "Money values are shown as rounded CLP integers with a $ prefix."
-          : metricType === "ratio"
-            ? "Operations rate is shown as a percentage of active cards."
-            : metricType === "decimal"
-              ? "Ratio values are shown with two decimal places."
-              : "Transaction counts are shown as rounded integers."}
-      </p>
+      {metricType === "ratio" ? (
+        <p className="text-xs text-muted">Operations rate is shown as a percentage of active cards.</p>
+      ) : metricType === "decimal" ? (
+        <p className="text-xs text-muted">Ratio values are shown with two decimal places.</p>
+      ) : metricType === "count" ? (
+        <p className="text-xs text-muted">Transaction counts are shown as rounded integers.</p>
+      ) : null}
     </div>
   );
 }

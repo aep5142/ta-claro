@@ -255,6 +255,8 @@ This repo contains two active ETL subsystems:
   - primary sections: `Credit Cards`, `Debit Cards`, `Accounts`, `Loans`
 - only `Credit Cards` is functional in v1
 - `Debit Cards`, `Accounts`, and `Loans` are placeholders inside the shared shell
+- the debit-card phase should replicate the credit-card frontend pattern and interaction model, then swap in debit-card-specific data, routes, and labels rather than redesigning the shell
+- when the user asks to work on debit cards, first ask for the debit-card metrics and source endpoints before planning implementation details
 - credit-card subsections/routes:
   - `Purchases` at `/credit-cards/purchases`
   - `Cash Advances` at `/credit-cards/cash-advances`
@@ -282,6 +284,10 @@ This repo contains two active ETL subsystems:
   - the market-share table includes an `Others` row when the selected metric is share-based
   - bank selector pills show only the bank name
   - the layout uses the full available width and the chart does not require horizontal scrolling
+  - when the selected range has a single month, the visualization switches to a horizontal bar chart sorted descending by value
+  - single-month bar labels stay outside the bars and reserve right-side space so the biggest value never clips
+  - chart hover tooltips include a `XX% of the system` line computed from system-wide month totals, not from the selected banks
+  - money values render with a fixed `$` prefix instead of a trailing `CLP`
   - point markers shrink for long date ranges
   - money display uses integer values with `.` thousands separators
   - percentage display uses `,` as the decimal separator with 1 decimal place
