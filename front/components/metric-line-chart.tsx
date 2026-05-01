@@ -73,7 +73,8 @@ export function MetricLineChart({
   const maxTickLabelLength = Math.max(...yTicks.map((tick) => formatTickLabel(tick).length));
   const estimatedTickLabelWidth = maxTickLabelLength * 7;
   const multiMonthLeftPadding = Math.max(56, Math.min(160, estimatedTickLabelWidth + 24));
-  const padding = months.length === 1 ? { top: 20, right: 24, bottom: 24, left: 160 } : { top: 18, right: 18, bottom: 42, left: multiMonthLeftPadding };
+  const padding =
+    months.length === 1 ? { top: 20, right: 24, bottom: 24, left: 160 } : { top: 18, right: 18, bottom: 42, left: multiMonthLeftPadding };
 
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
@@ -82,7 +83,8 @@ export function MetricLineChart({
     padding.left + (isSingleMonth ? chartWidth / 2 : (chartWidth * index) / (months.length - 1));
   const yForValue = (value: number) => padding.top + chartHeight - ((value - minValue) / valueRange) * chartHeight;
   const pointRadius = months.length > 72 ? 2.2 : months.length > 36 ? 2.8 : months.length > 18 ? 3.4 : 4.2;
-  const monthLabelStep = months.length > 96 ? 12 : months.length > 72 ? 6 : months.length > 36 ? 4 : months.length > 24 ? 3 : months.length > 12 ? 2 : 1;
+  const monthLabelStep =
+    months.length > 96 ? 12 : months.length > 72 ? 6 : months.length > 36 ? 4 : months.length > 24 ? 3 : months.length > 12 ? 2 : 1;
   const singleMonthBanks =
     months.length === 1
       ? [...series]
@@ -114,9 +116,7 @@ export function MetricLineChart({
   };
   const tooltipValueLabel = formatMetricValue(hoveredPoint?.value ?? 0);
   const tooltipShareLabel =
-    hoveredPoint?.systemShare === null || hoveredPoint?.systemShare === undefined
-      ? null
-      : formatPercent(hoveredPoint.systemShare);
+    hoveredPoint?.systemShare === null || hoveredPoint?.systemShare === undefined ? null : formatPercent(hoveredPoint.systemShare);
 
   return (
     <div className="space-y-4">
@@ -201,13 +201,7 @@ export function MetricLineChart({
                       onBlur={() => setHoveredPoint(null)}
                       tabIndex={0}
                     />
-                    <text
-                      x={labelX}
-                      y={barY + 14}
-                      textAnchor="start"
-                      fontSize="11"
-                      fill="#95a8c7"
-                    >
+                    <text x={labelX} y={barY + 14} textAnchor="start" fontSize="11" fill="#95a8c7">
                       {formatMetricValue(value)}
                     </text>
                   </g>
@@ -218,129 +212,127 @@ export function MetricLineChart({
 
           {!isSingleMonth ? (
             <>
-          {yTicks.map((tick) => {
-            const y = yForValue(tick);
-            return (
-              <g key={tick}>
-                <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#22344f" strokeDasharray="4 6" />
-                <text x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="11" fill="#95a8c7">
-                  {formatTickLabel(tick)}
-                </text>
-              </g>
-            );
-          })}
+              {yTicks.map((tick) => {
+                const y = yForValue(tick);
+                return (
+                  <g key={tick}>
+                    <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#22344f" strokeDasharray="4 6" />
+                    <text x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="11" fill="#95a8c7">
+                      {formatTickLabel(tick)}
+                    </text>
+                  </g>
+                );
+              })}
 
-          {months.map((month, index) => {
-            const x = xForIndex(index);
-            const shouldLabel = index === 0 || index === months.length - 1 || index % monthLabelStep === 0;
-            return (
-              <g key={month}>
-                <line x1={x} y1={padding.top} x2={x} y2={height - padding.bottom} stroke="#16253c" />
-                {shouldLabel ? (
-                  <text x={x} y={height - 16} textAnchor="middle" fontSize="11" fill="#95a8c7">
-                    {formatMonthLabel(month)}
-                  </text>
-                ) : null}
-              </g>
-            );
-          })}
+              {months.map((month, index) => {
+                const x = xForIndex(index);
+                const shouldLabel = index === 0 || index === months.length - 1 || index % monthLabelStep === 0;
+                return (
+                  <g key={month}>
+                    <line x1={x} y1={padding.top} x2={x} y2={height - padding.bottom} stroke="#16253c" />
+                    {shouldLabel ? (
+                      <text x={x} y={height - 16} textAnchor="middle" fontSize="11" fill="#95a8c7">
+                        {formatMonthLabel(month)}
+                      </text>
+                    ) : null}
+                  </g>
+                );
+              })}
 
-          {series.map((bank) => {
-            const color = getBankColor(bank.institutionCode);
-            const segments: string[] = [];
-            let activeSegment = "";
+              {series.map((bank) => {
+                const color = getBankColor(bank.institutionCode);
+                const segments: string[] = [];
+                let activeSegment = "";
 
-            months.forEach((month, monthIndex) => {
-              const value = bank.series[month];
-
-              if (value === null || value === undefined) {
-                if (activeSegment) {
-                  segments.push(activeSegment);
-                  activeSegment = "";
-                }
-                return;
-              }
-
-              const x = xForIndex(monthIndex);
-              const y = yForValue(value);
-              activeSegment = `${activeSegment ? `${activeSegment} L` : "M"} ${x} ${y}`;
-            });
-
-            if (activeSegment) {
-              segments.push(activeSegment);
-            }
-
-            return (
-              <g key={bank.institutionCode}>
-                {segments.map((segment) => (
-                  <path
-                    key={`${bank.institutionCode}-${segment}`}
-                    d={segment}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                ))}
-                {months.map((month, monthIndex) => {
+                months.forEach((month, monthIndex) => {
                   const value = bank.series[month];
 
                   if (value === null || value === undefined) {
-                    return null;
+                    if (activeSegment) {
+                      segments.push(activeSegment);
+                      activeSegment = "";
+                    }
+                    return;
                   }
 
                   const x = xForIndex(monthIndex);
                   const y = yForValue(value);
+                  activeSegment = `${activeSegment ? `${activeSegment} L` : "M"} ${x} ${y}`;
+                });
 
-                  return (
-                    <circle
-                      key={`${bank.institutionCode}-${month}`}
-                      cx={x}
-                      cy={y}
-                      r={pointRadius}
-                      fill={color}
-                      className="cursor-pointer transition hover:opacity-100 focus:opacity-100"
-                      tabIndex={0}
-                      onMouseEnter={() =>
-                        setHoveredPoint({
-                          institutionName: bank.institutionName,
-                          month,
-                          value,
-                          color,
-                          x,
-                          y,
-                          systemShare:
-                            monthTotals[month] > 0 ? (value / monthTotals[month]) * 100 : null,
-                        })
+                if (activeSegment) {
+                  segments.push(activeSegment);
+                }
+
+                return (
+                  <g key={bank.institutionCode}>
+                    {segments.map((segment) => (
+                      <path
+                        key={`${bank.institutionCode}-${segment}`}
+                        d={segment}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                      />
+                    ))}
+                    {months.map((month, monthIndex) => {
+                      const value = bank.series[month];
+
+                      if (value === null || value === undefined) {
+                        return null;
                       }
-                      onMouseLeave={() =>
-                        setHoveredPoint((current) =>
-                          current?.institutionName === bank.institutionName && current?.month === month ? null : current
-                        )
-                      }
-                      onFocus={() =>
-                        setHoveredPoint({
-                          institutionName: bank.institutionName,
-                          month,
-                          value,
-                          color,
-                          x,
-                          y,
-                          systemShare:
-                            monthTotals[month] > 0 ? (value / monthTotals[month]) * 100 : null,
-                        })
-                      }
-                      onBlur={() =>
-                        setHoveredPoint((current) =>
-                          current?.institutionName === bank.institutionName && current?.month === month ? null : current
-                        )
-                      }
-                    />
-                  );
-                })}
-              </g>
-            );
-          })}
+
+                      const x = xForIndex(monthIndex);
+                      const y = yForValue(value);
+
+                      return (
+                        <circle
+                          key={`${bank.institutionCode}-${month}`}
+                          cx={x}
+                          cy={y}
+                          r={pointRadius}
+                          fill={color}
+                          className="cursor-pointer transition hover:opacity-100 focus:opacity-100"
+                          tabIndex={0}
+                          onMouseEnter={() =>
+                            setHoveredPoint({
+                              institutionName: bank.institutionName,
+                              month,
+                              value,
+                              color,
+                              x,
+                              y,
+                              systemShare: monthTotals[month] > 0 ? (value / monthTotals[month]) * 100 : null,
+                            })
+                          }
+                          onMouseLeave={() =>
+                            setHoveredPoint((current) =>
+                              current?.institutionName === bank.institutionName && current?.month === month ? null : current
+                            )
+                          }
+                          onFocus={() =>
+                            setHoveredPoint({
+                              institutionName: bank.institutionName,
+                              month,
+                              value,
+                              color,
+                              x,
+                              y,
+                              systemShare: monthTotals[month] > 0 ? (value / monthTotals[month]) * 100 : null,
+                            })
+                          }
+                          onBlur={() =>
+                            setHoveredPoint((current) =>
+                              current?.institutionName === bank.institutionName && current?.month === month ? null : current
+                            )
+                          }
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              })}
             </>
           ) : null}
         </svg>

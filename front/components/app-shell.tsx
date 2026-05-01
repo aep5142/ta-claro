@@ -12,19 +12,13 @@ type AppShellProps = {
 export function AppShell({ children, section, activeOperation }: AppShellProps) {
   return (
     <div className="min-h-screen bg-surface">
-      <header className="border-b border-border bg-[#07101c]/95 backdrop-blur">
-        <div className="flex w-full items-center gap-6 px-4 py-4 sm:px-6 lg:px-8">
-          <Link href="/credit-cards/purchases?view=volume" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/15 text-lg font-semibold text-brand">
-              TC
-            </div>
-            <div>
-              <p className="text-lg font-semibold tracking-tight text-white">Ta-Claro</p>
-              <p className="text-xs text-muted">Financial market analytics</p>
-            </div>
+      <header className="border-b border-border bg-surface/95 backdrop-blur">
+        <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-4 py-5 sm:px-6 lg:px-8">
+          <Link href="/credit-cards/purchases?view=volume" className="justify-self-start">
+            <p className="text-2xl font-semibold tracking-tight text-white">Ta-Claro</p>
           </Link>
 
-          <nav className="ml-auto flex flex-wrap gap-2">
+          <nav className="flex flex-wrap items-center justify-center gap-7">
             {primarySections.map((item) => {
               const isActive = section === item.slug;
 
@@ -33,10 +27,10 @@ export function AppShell({ children, section, activeOperation }: AppShellProps) 
                   key={item.slug}
                   href={item.href}
                   className={cn(
-                    "rounded-full border px-4 py-2 text-sm font-medium transition",
+                    "border-b-2 pb-1 text-xs font-medium uppercase tracking-[0.28em] transition",
                     isActive
-                      ? "border-brand/60 bg-brand/10 text-white"
-                      : "border-border bg-panel text-muted hover:border-brand/40 hover:text-white"
+                      ? "border-brand text-white"
+                      : "border-transparent text-muted hover:text-white"
                   )}
                 >
                   {item.label}
@@ -44,11 +38,20 @@ export function AppShell({ children, section, activeOperation }: AppShellProps) 
               );
             })}
           </nav>
+
+          <div className="justify-self-end">
+            <button
+              type="button"
+              className="rounded-sm border border-white/20 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-surface transition hover:bg-brand hover:text-white"
+            >
+              Login
+            </button>
+          </div>
         </div>
       </header>
 
-      <div className="flex w-full flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:flex-row">
-        <aside className="w-full shrink-0 lg:w-72">
+      <div className="flex w-full flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8 lg:flex-row">
+        <aside className="w-full shrink-0 border-border lg:w-72 lg:border-r lg:pr-8">
           <CreditCardSidebar section={section} activeOperation={activeOperation} />
         </aside>
         <main className="min-w-0 flex-1">{children}</main>

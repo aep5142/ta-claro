@@ -18,13 +18,13 @@ export function CreditCardSidebar({ section, activeOperation }: CreditCardSideba
           : "Loans";
 
   return (
-    <div className="rounded-3xl border border-border bg-panel p-4">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-white">{sectionTitle}</h2>
+    <div className="py-2">
+      <div className="mb-8">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.28em] text-muted">{sectionTitle}</h2>
       </div>
 
       {section === "credit-cards" ? (
-        <div className="space-y-2">
+        <div className="space-y-4">
           {creditCardOperations.map((item) => {
             const isActive = activeOperation === item.slug;
 
@@ -35,10 +35,10 @@ export function CreditCardSidebar({ section, activeOperation }: CreditCardSideba
                   item.slug === "operations-rate" ? "total-active-cards" : "volume"
                 }`}
                 className={cn(
-                  "flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition",
+                  "block border-l-2 pl-4 text-[15px] transition",
                   isActive
-                    ? "border-brand/60 bg-brand/10 text-white"
-                    : "border-transparent bg-panelMuted text-muted hover:border-border hover:text-white"
+                    ? "border-brand text-white"
+                    : "border-transparent text-muted hover:text-white"
                 )}
               >
                 <span>{item.label}</span>
@@ -47,7 +47,7 @@ export function CreditCardSidebar({ section, activeOperation }: CreditCardSideba
           })}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-border bg-panelMuted p-4 text-sm text-muted">
+        <div className="max-w-[18rem] text-sm leading-6 text-muted">
           Only the Credit Cards section is connected in v1. This route remains part of the shared shell.
         </div>
       )}

@@ -1,4 +1,5 @@
-import { getBankDisplayName } from "@/lib/bank-presentation";
+import { getBankColor, getBankDisplayName } from "@/lib/bank-presentation";
+import { cn } from "@/lib/utils";
 
 type BankSelectorProps = {
   banks: Array<{
@@ -7,9 +8,10 @@ type BankSelectorProps = {
   }>;
   selectedBanks: string[];
   onChange: (nextSelected: string[]) => void;
+  onReset: () => void;
 };
 
-export function BankSelector({ banks, selectedBanks, onChange }: BankSelectorProps) {
+export function BankSelector({ banks, selectedBanks, onChange, onReset }: BankSelectorProps) {
   function toggleBank(institutionCode: string) {
     onChange(
       selectedBanks.includes(institutionCode)
@@ -19,55 +21,50 @@ export function BankSelector({ banks, selectedBanks, onChange }: BankSelectorPro
   }
 
   return (
-    <aside className="rounded-3xl border border-border bg-panel p-6">
-      <div className="flex items-start justify-between gap-3">
+    <section className="border-t border-border pt-8">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <h3 className="text-xl font-semibold text-white">Banks</h3>
-          <p className="mt-2 text-sm text-muted">Initial selection uses the top 5 banks for the active metric.</p>
+          <h3 className="text-3xl font-semibold tracking-tight text-white">Banks shown</h3>
+          <p className="mt-2 text-sm text-muted">
+            Initial selection uses the top 5 banks for the active metric.
+          </p>
+        </div>
+        <div className="flex items-center gap-4 text-sm text-muted">
+          <button type="button" onClick={() => onChange(banks.map((bank) => bank.institutionCode))} className="transition hover:text-white">
+            All
+          </button>
+          <button type="button" onClick={() => onChange([])} className="transition hover:text-white">
+            None
+          </button>
+          <button type="button" onClick={onReset} className="transition hover:text-white">
+            Reset
+          </button>
         </div>
       </div>
 
-      <div className="mt-4 flex gap-2">
-        <button
-          type="button"
-          onClick={() => onChange(banks.map((bank) => bank.institutionCode))}
-          className="rounded-full border border-border bg-panelMuted px-3 py-2 text-xs font-medium text-white transition hover:border-brand/50"
-        >
-          Select all
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange([])}
-          className="rounded-full border border-border bg-panelMuted px-3 py-2 text-xs font-medium text-white transition hover:border-brand/50"
-        >
-          Clear
-        </button>
-      </div>
-
-      <div className="mt-6 space-y-3">
+      <div className="mt-6 grid gap-x-10 gap-y-4 border-t border-border pt-6 sm:grid-cols-2 xl:grid-cols-4">
         {banks.map((bank) => {
           const checked = selectedBanks.includes(bank.institutionCode);
 
           return (
-            <label
+            <button
               key={bank.institutionCode}
-              className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-panelMuted p-3"
+              type="button"
+              onClick={() => toggleBank(bank.institutionCode)}
+              className="flex items-center gap-3 text-left text-base text-white transition hover:text-brand"
             >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => toggleBank(bank.institutionCode)}
-                className="mt-1 h-4 w-4 rounded border-border bg-panelMuted text-brand focus:ring-brand"
+              <span
+                className={cn(
+                  "h-3.5 w-3.5 rounded-full border transition",
+                  checked ? "border-transparent" : "border-muted/50 bg-transparent"
+                )}
+                style={{ backgroundColor: checked ? getBankColor(bank.institutionCode) : "transparent" }}
               />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-white">
-                  {getBankDisplayName(bank.institutionName)}
-                </span>
-              </span>
-            </label>
+              <span className="truncate">{getBankDisplayName(bank.institutionName)}</span>
+            </button>
           );
         })}
       </div>
-    </aside>
+    </section>
   );
 }
