@@ -81,6 +81,13 @@ export const operationsRateViews = [
     description: "Share of active cards that recorded operations in the month.",
     unitLabel: "Percentage of active cards.",
   },
+  {
+    key: "supplementary-rate",
+    label: "Supplementary Rate",
+    metricType: "ratio" as const,
+    description: "Share of Primary Cards that have a Suplementary Card.",
+    unitLabel: "Percentage of primary cards.",
+  },
 ] as const;
 
 export type ChartViewKey = (typeof chartViews)[number]["key"];

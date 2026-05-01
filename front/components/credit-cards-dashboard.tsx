@@ -806,6 +806,10 @@ function getOperationsRateMetricValue(
   if (viewKey === "operations-rate") {
     return row.operations_rate === null ? null : Number(row.operations_rate) * 100;
   }
+  if (viewKey === "supplementary-rate") {
+    const primaryCards = Number(row.active_cards_primary);
+    return primaryCards > 0 ? (Number(row.active_cards_supplementary) / primaryCards) * 100 : null;
+  }
 
   return null;
 }
@@ -944,11 +948,15 @@ function calculateOperationsRateSystemValue(rows: OperationsRateMetricRow[], vie
   const totals = rows.reduce(
     (accumulator, row) => {
       accumulator.totalActiveCards += Number(row.total_active_cards);
+      accumulator.activeCardsPrimary += Number(row.active_cards_primary);
+      accumulator.activeCardsSupplementary += Number(row.active_cards_supplementary);
       accumulator.totalCardsWithOperations += Number(row.total_cards_with_operations);
       return accumulator;
     },
     {
       totalActiveCards: 0,
+      activeCardsPrimary: 0,
+      activeCardsSupplementary: 0,
       totalCardsWithOperations: 0,
     }
   );
@@ -961,6 +969,11 @@ function calculateOperationsRateSystemValue(rows: OperationsRateMetricRow[], vie
   }
   if (viewKey === "operations-rate") {
     return totals.totalActiveCards > 0 ? (totals.totalCardsWithOperations / totals.totalActiveCards) * 100 : null;
+  }
+  if (viewKey === "supplementary-rate") {
+    return totals.activeCardsPrimary > 0
+      ? (totals.activeCardsSupplementary / totals.activeCardsPrimary) * 100
+      : null;
   }
 
   return null;

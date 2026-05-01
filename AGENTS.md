@@ -184,6 +184,7 @@ This repo contains two active ETL subsystems:
   - `operations_rate`
 - CLP convenience calculations should happen at query time outside the stored schema.
 - `public.bank_credit_card_operations_rate_metrics` exposes the bank-month totals used by the `Operations Rate` route.
+  - it also exposes the primary and supplementary count fields needed to derive supplementary/primary ratios in the browser.
 
 # SQL Assets
 
@@ -274,6 +275,7 @@ This repo contains two active ETL subsystems:
   - render submetrics: `Volume`, `Transactions`, `Avg. Transaction`, `Operations per Active Card`
   - render `Operations per Active Card` on the operation pages
   - render `Total Active Cards`, `Total Cards with Operations`, and `Operations Rate` on the operations-rate page
+  - render supplementary/primary ratio metrics on the operations-rate page from the curated primary/supplementary count fields
   - main visualization is a multi-bank line chart over time
   - time range is month-based and displayed as `MM/YY`
   - default range is the last 12 months ending at the latest available month for the selected operation

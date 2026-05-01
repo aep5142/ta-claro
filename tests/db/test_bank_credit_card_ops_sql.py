@@ -54,6 +54,8 @@ def test_credit_card_metrics_rollback_sql_defines_new_public_contract():
     assert "source_dataset_code,\n    curated.updated_at,\n    curated.total_active_cards" in sql
     assert "create or replace view public.bank_credit_card_operations_rate_metrics" in sql
     assert "total_active_cards" in sql
+    assert "active_cards_primary" in sql
+    assert "active_cards_supplementary" in sql
     assert "total_cards_with_operations" in sql
     assert "market_share_percent" not in sql
 

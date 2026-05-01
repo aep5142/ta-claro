@@ -26,6 +26,8 @@ export type OperationsRateMetricRow = {
   institution_name: string;
   period_month: string;
   total_active_cards: string;
+  active_cards_primary: string;
+  active_cards_supplementary: string;
   total_cards_with_operations: string;
   operations_rate: string | null;
 };
@@ -146,7 +148,7 @@ export async function fetchOperationsRateMetrics(
     const { data, error } = await supabase
       .from("bank_credit_card_operations_rate_metrics")
       .select(
-        "institution_code,institution_name,period_month,total_active_cards,total_cards_with_operations,operations_rate"
+        "institution_code,institution_name,period_month,total_active_cards,active_cards_primary,active_cards_supplementary,total_cards_with_operations,operations_rate"
       )
       .gte("period_month", startDateIso)
       .lte("period_month", endDateIso)
