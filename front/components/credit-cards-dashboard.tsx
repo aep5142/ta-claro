@@ -568,9 +568,11 @@ export function CreditCardsDashboard({
             <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-white">{activeMetric.label}</h2>
-                <p className="mt-2 text-xs italic text-muted">
-                  {activeMetric.key === "volume" ? "Millions of CLP" : activeMetric.unitLabel}
-                </p>
+                {activeMetric.key === "volume" ? (
+                  <p className="mt-2 text-xs italic text-muted">Millions of CLP</p>
+                ) : activeMetric.unitLabel ? (
+                  <p className="mt-2 text-xs italic text-muted">{activeMetric.unitLabel}</p>
+                ) : null}
               </div>
 
               <div className="flex flex-nowrap items-center gap-2">
@@ -581,10 +583,14 @@ export function CreditCardsDashboard({
                     label={item.label}
                     description={
                       !isOperationsRateDashboard
-                        ? item.description.replace(
-                            "for the selected operation",
-                            `for ${operationLabelMap[operation]}`
-                          )
+                        ? item.key === "average-ticket"
+                          ? `Avg ${operationLabelMap[operation]} in CLP.`
+                          : item.key === "operations-per-active-card"
+                            ? `Number of ${operationLabelMap[operation]} per active credit card.`
+                            : item.description.replace(
+                                "for the selected operation",
+                                `for ${operationLabelMap[operation]}`
+                              )
                         : item.description
                     }
                     unitLabel={item.unitLabel}
@@ -778,7 +784,7 @@ function MetricTabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "group relative shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition",
+        "group/tab relative shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition",
         active
           ? "border-brand/60 bg-brand/10 text-white"
           : "border-border bg-panelMuted text-muted hover:text-white"
@@ -786,14 +792,16 @@ function MetricTabButton({
     >
       <span className="inline-flex items-center gap-2">
         {label}
-        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current/30 text-[9px] font-semibold leading-none text-current transition group-hover:border-brand/60 group-hover:text-white group-focus-visible:border-brand/60 group-focus-visible:text-white">
-          i
+        <span className="group/info relative inline-flex">
+          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current/30 text-[9px] font-semibold leading-none text-current transition group-hover/tab:border-brand/60 group-hover/tab:text-white group-focus-visible/tab:border-brand/60 group-focus-visible/tab:text-white">
+            i
+          </span>
+          <span className="pointer-events-none absolute left-1/2 bottom-full z-30 mb-2 hidden w-80 max-w-[90vw] -translate-x-1/2 whitespace-normal break-words rounded-2xl border border-border bg-[#07101c] p-3 text-left text-xs leading-5 text-muted shadow-2xl group-hover/info:block group-focus-visible/info:block">
+            <span className="block text-sm font-semibold text-white">{label}</span>
+            <span className="mt-1 block">{description}</span>
+            {unitLabel ? <span className="mt-1 block text-xs italic text-brand">{unitLabel}</span> : null}
+          </span>
         </span>
-      </span>
-      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-2xl border border-border bg-[#07101c] p-3 text-left text-xs leading-5 text-muted shadow-2xl group-hover:block group-focus-visible:block">
-        <span className="block text-sm font-semibold text-white">{label}</span>
-        <span className="mt-1 block">{description}</span>
-        <span className="mt-1 block text-xs italic text-brand">{unitLabel}</span>
       </span>
     </button>
   );
