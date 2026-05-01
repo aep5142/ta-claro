@@ -59,7 +59,7 @@ type MetricType = "money" | "count" | "decimal" | "ratio";
 type SummaryRow = {
   institutionCode: string;
   institutionName: string;
-  currentValue: number;
+  currentValue: number | null;
   share: number | null;
   vsStart: number | null;
 };
@@ -337,14 +337,9 @@ export function CreditCardsDashboard({
         return filtered;
       }
 
-      if (hasSeededSelectionRef.current || !latestLoadedMonth) {
-        return current;
-      }
-
-      hasSeededSelectionRef.current = true;
       return defaultSelectedBanks;
     });
-  }, [bankSeries, defaultSelectedBanks, latestLoadedMonth]);
+  }, [bankSeries, defaultSelectedBanks]);
 
   const selectedSeries = useMemo(
     () => bankSeries.filter((bank) => selectedBanks.includes(bank.institutionCode)),
@@ -411,10 +406,6 @@ export function CreditCardsDashboard({
           ? getOperationsRateMetricValue(row as OperationsRateMetricRow, viewKey as OperationsRateViewKey)
           : getOperationMetricValue(row as CreditCardMetricRow, viewKey as ChartViewKey, activeUfValue);
 
-        if (currentValue === null) {
-          return null;
-        }
-
         const startRow = firstRowsByCode.get(institutionCode);
         const startValue = startRow
           ? isOperationsRateDashboard
@@ -443,9 +434,44 @@ export function CreditCardsDashboard({
         };
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row))
-      .sort((left, right) => right.currentValue - left.currentValue);
+      .sort((left, right) => {
+        if (left.currentValue === null && right.currentValue === null) {
+          return 0;
+        }
+        if (left.currentValue === null) {
+          return 1;
+        }
+        if (right.currentValue === null) {
+          return -1;
+        }
+        return right.currentValue - left.currentValue;
+      });
 
-    if (isOperationsRateDashboard || viewKey === "operations-per-active-card") {
+    if (isOperationsRateDashboard) {
+      const systemCurrentValue = calculateOperationsRateSystemValue(
+        latestMonthRows as OperationsRateMetricRow[],
+        viewKey as OperationsRateViewKey
+      );
+      const systemStartValue = calculateOperationsRateSystemValue(
+        firstMonthRows as OperationsRateMetricRow[],
+        viewKey as OperationsRateViewKey
+      );
+
+      return systemCurrentValue === null
+        ? selectedRows
+        : [
+            {
+              institutionCode: "total",
+              institutionName: "System",
+              currentValue: systemCurrentValue,
+              share: null,
+              vsStart: calculateVsStart(systemStartValue, systemCurrentValue, startMonth === latestLoadedMonth),
+            },
+            ...selectedRows,
+          ];
+    }
+
+    if (viewKey === "operations-per-active-card") {
       return selectedRows;
     }
 
@@ -471,12 +497,12 @@ export function CreditCardsDashboard({
           ];
     }
 
-    const selectedTotal = selectedRows.reduce((accumulator, row) => accumulator + row.currentValue, 0);
+    const selectedTotal = selectedRows.reduce((accumulator, row) => accumulator + (row.currentValue ?? 0), 0);
     const totalValue = viewKey === "volume" ? totals.volume : totals.transactions;
     const othersValue = Math.max(totalValue - selectedTotal, 0);
     const othersShare = calculateMarketShares(othersValue, totalValue);
 
-      return [
+    return [
       {
         institutionCode: "total",
         institutionName: "System",
@@ -548,7 +574,7 @@ export function CreditCardsDashboard({
           <h1 className="mt-5 text-5xl font-semibold tracking-tight text-white sm:text-6xl">
             {getEditorialTitle(operationLabelMap[operation])}
           </h1>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-muted">
+          <p className="mt-5 max-w-none whitespace-nowrap text-base leading-7 text-muted sm:text-lg">
             Monthly credit-card analysis across banks, with UF-adjusted CLP values for volume and ticket metrics, plus the active-card and operations-rate views.
           </p>
         </div>
@@ -556,13 +582,13 @@ export function CreditCardsDashboard({
 
       <div className="space-y-8">
         <div className="rounded-3xl border border-border bg-panel p-6">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div className={cn("grid gap-3", isOperationsRateDashboard ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div className={cn("grid gap-5", isOperationsRateDashboard ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
               <ControlCard label="Start (MM/YY)">
                 <select
                   value={startMonth}
                   onChange={(event) => setStartMonth(event.target.value)}
-                  className="w-full rounded-2xl border border-border bg-panelMuted px-3 py-2 text-sm text-white outline-none transition focus:border-brand/60"
+                  className="w-full border-0 border-b border-border bg-transparent px-0 py-2 text-sm text-white outline-none transition focus:border-brand/60"
                 >
                   {availableMonthOptions.map((month) => (
                     <option key={month} value={month} disabled={month > endMonth}>
@@ -575,7 +601,7 @@ export function CreditCardsDashboard({
                 <select
                   value={endMonth}
                   onChange={(event) => setEndMonth(event.target.value)}
-                  className="w-full rounded-2xl border border-border bg-panelMuted px-3 py-2 text-sm text-white outline-none transition focus:border-brand/60"
+                  className="w-full border-0 border-b border-border bg-transparent px-0 py-2 text-sm text-white outline-none transition focus:border-brand/60"
                 >
                   {availableMonthOptions.map((month) => (
                     <option key={month} value={month} disabled={month < startMonth}>
@@ -589,7 +615,7 @@ export function CreditCardsDashboard({
                   label={
                     <span className="inline-flex items-center gap-2">
                       UF value
-                      <span className="group relative inline-flex h-4 w-4 items-center justify-center rounded-full border border-current/30 text-[10px] font-semibold leading-none text-current">
+                      <span className="group relative inline-flex h-4 w-4 items-center justify-center rounded-full border border-current/30 text-[10px] font-semibold leading-none text-current cursor-help">
                         i
                         <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-56 -translate-x-1/2 rounded-2xl border border-border bg-[#07101c] p-3 text-left text-xs leading-5 text-muted shadow-2xl group-hover:block">
                           by default uses today&apos;s UF
@@ -599,7 +625,7 @@ export function CreditCardsDashboard({
                   }
                 >
                   <div className="relative">
-                    <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted">$</span>
+                    <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center text-sm text-muted">$</span>
                     <input
                       value={ufInput}
                       onChange={(event) => {
@@ -607,7 +633,7 @@ export function CreditCardsDashboard({
                         setUfInput(digits ? formatMoney(Number(digits)) : "");
                       }}
                       inputMode="numeric"
-                      className="w-full rounded-2xl border border-border bg-panelMuted py-2 pl-8 pr-3 text-sm text-white outline-none transition focus:border-brand/60"
+                      className="w-full border-0 border-b border-border bg-transparent py-2 pl-5 pr-0 text-sm text-white outline-none transition focus:border-brand/60"
                     />
                   </div>
                 </ControlCard>
@@ -618,16 +644,14 @@ export function CreditCardsDashboard({
 
         <div className="rounded-3xl border border-border bg-panel p-6">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
+            <div className="min-h-[4rem]">
               <h2 className="text-xl font-semibold text-white">{activeMetric.label}</h2>
-              {activeMetric.key === "volume" ? (
-                <p className="mt-2 text-xs italic text-muted">Millions of CLP</p>
-              ) : activeMetric.unitLabel ? (
-                <p className="mt-2 text-xs italic text-muted">{activeMetric.unitLabel}</p>
-              ) : null}
+              <p className="mt-2 min-h-5 text-xs italic text-muted">
+                {activeMetric.key === "volume" ? "Millions of CLP" : activeMetric.unitLabel || "\u00A0"}
+              </p>
             </div>
 
-            <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
+            <div className="flex flex-nowrap items-center gap-2 pb-1">
               {(isOperationsRateDashboard ? operationsRateViews : chartViews).map((item) => (
                 <MetricTabButton
                   key={item.key}
@@ -682,9 +706,9 @@ export function CreditCardsDashboard({
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
               <h3 className="text-3xl font-semibold tracking-tight text-white">
-                {activeMetric.label} in {latestLoadedMonth ? formatMonthLabel(latestLoadedMonth) : formatMonthLabel(endMonth)}
-              </h3>
-            </div>
+      {activeMetric.label} in {latestLoadedMonth ? formatMonthLabel(latestLoadedMonth) : formatMonthLabel(endMonth)}
+    </h3>
+  </div>
             <p className="text-sm text-muted">{selectedBanks.length} banks</p>
           </div>
 
@@ -695,17 +719,20 @@ export function CreditCardsDashboard({
                   <th className="py-4 pr-6">Bank</th>
                   <th className="py-4 pr-6 text-right">{activeMetric.label}</th>
                   {shouldShowShareColumn ? <th className="py-4 pr-6 text-right">Share</th> : null}
-                  <th className="py-4 text-right">Vs. Start</th>
+                  <th className="py-4 text-right">v/s MM/YY</th>
                 </tr>
               </thead>
               <tbody>
                 {summaryRows.map((row) => (
-                  <tr key={row.institutionCode} className="border-b border-border/70">
+                  <tr
+                    key={row.institutionCode}
+                    className={cn("border-b border-border/70", row.institutionCode === "total" && "bg-brand/10")}
+                  >
                     <td className={cn("py-5 pr-6 text-white", row.institutionCode === "total" ? "font-semibold" : "")}>
                       {row.institutionName}
                     </td>
                     <td className={cn("py-5 pr-6 text-right text-white", row.institutionCode === "total" ? "font-semibold" : "")}>
-                      {formatMetricValue(row.currentValue, activeMetric.metricType)}
+                      {row.currentValue === null ? "—" : formatMetricValue(row.currentValue, activeMetric.metricType)}
                     </td>
                     {shouldShowShareColumn ? (
                       <td className={cn("py-5 pr-6 text-right text-white", row.institutionCode === "total" ? "font-semibold" : "")}>
@@ -783,8 +810,8 @@ function formatMetricValue(value: number, metricType: MetricType): string {
 
 function ControlCard({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="rounded-3xl border border-border bg-panel px-4 py-3">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted">{label}</p>
+    <div className="min-w-0">
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-muted">{label}</p>
       {children}
     </div>
   );
@@ -816,8 +843,8 @@ function MetricTabButton({
     >
       <span className="inline-flex items-center gap-2">
         {label}
-        <span className="group/info relative inline-flex">
-          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current/30 text-[9px] font-semibold leading-none text-current transition group-hover/tab:border-brand/60 group-hover/tab:text-white group-focus-visible/tab:border-brand/60 group-focus-visible/tab:text-white">
+        <span className="group/info relative inline-flex cursor-help">
+          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current/30 text-[10px] font-semibold leading-none text-current transition group-hover/tab:border-brand/60 group-hover/tab:text-white group-focus-visible/tab:border-brand/60 group-focus-visible/tab:text-white">
             i
           </span>
           <span className="pointer-events-none absolute left-1/2 bottom-full z-30 mb-2 hidden w-80 max-w-[90vw] -translate-x-1/2 whitespace-normal break-words rounded-2xl border border-border bg-[#07101c] p-3 text-left text-xs leading-5 text-muted shadow-2xl group-hover/info:block group-focus-visible/info:block">
@@ -853,8 +880,8 @@ function computeDefaultSelectedBanks(
     .map((item) => item.institutionCode);
 }
 
-function calculateVsStart(startValue: number | null, currentValue: number, sameMonth: boolean) {
-  if (sameMonth || startValue === null || startValue === 0) {
+function calculateVsStart(startValue: number | null, currentValue: number | null, sameMonth: boolean) {
+  if (sameMonth || startValue === null || startValue === 0 || currentValue === null) {
     return null;
   }
 
@@ -876,6 +903,32 @@ function calculateSystemAverage(rows: Array<CreditCardMetricRow | OperationsRate
   );
 
   return totals.transactions > 0 ? (totals.volume * 1_000_000) / totals.transactions : null;
+}
+
+function calculateOperationsRateSystemValue(rows: OperationsRateMetricRow[], viewKey: OperationsRateViewKey) {
+  const totals = rows.reduce(
+    (accumulator, row) => {
+      accumulator.totalActiveCards += Number(row.total_active_cards);
+      accumulator.totalCardsWithOperations += Number(row.total_cards_with_operations);
+      return accumulator;
+    },
+    {
+      totalActiveCards: 0,
+      totalCardsWithOperations: 0,
+    }
+  );
+
+  if (viewKey === "total-active-cards") {
+    return totals.totalActiveCards;
+  }
+  if (viewKey === "total-cards-with-operations") {
+    return totals.totalCardsWithOperations;
+  }
+  if (viewKey === "operations-rate") {
+    return totals.totalActiveCards > 0 ? (totals.totalCardsWithOperations / totals.totalActiveCards) * 100 : null;
+  }
+
+  return null;
 }
 
 function calculateSystemTotal(
