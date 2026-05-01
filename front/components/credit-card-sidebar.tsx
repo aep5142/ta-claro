@@ -20,7 +20,7 @@ export function CreditCardSidebar({ section, activeOperation }: CreditCardSideba
   return (
     <div className="py-2">
       <div className="mb-8">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.28em] text-muted">{sectionTitle}</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">{sectionTitle}</h2>
       </div>
 
       {section === "credit-cards" ? (
@@ -36,9 +36,7 @@ export function CreditCardSidebar({ section, activeOperation }: CreditCardSideba
                 }`}
                 className={cn(
                   "block border-l-2 pl-4 text-[15px] transition",
-                  isActive
-                    ? "border-brand text-white"
-                    : "border-transparent text-muted hover:text-white"
+                  isActive ? "border-brand font-semibold text-slate-950" : "border-transparent text-slate-700 hover:text-slate-950"
                 )}
               >
                 <span>{item.label}</span>
@@ -47,7 +45,7 @@ export function CreditCardSidebar({ section, activeOperation }: CreditCardSideba
           })}
         </div>
       ) : (
-        <div className="max-w-[18rem] text-sm leading-6 text-muted">
+        <div className="max-w-[18rem] text-sm leading-6 text-slate-700">
           Only the Credit Cards section is connected in v1. This route remains part of the shared shell.
         </div>
       )}

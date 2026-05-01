@@ -472,7 +472,21 @@ export function CreditCardsDashboard({
     }
 
     if (viewKey === "operations-per-active-card") {
-      return selectedRows;
+      const systemCurrentValue = calculateOperationsPerActiveCardSystemValue(latestMonthRows as CreditCardMetricRow[]);
+      const systemStartValue = calculateOperationsPerActiveCardSystemValue(firstMonthRows as CreditCardMetricRow[]);
+
+      return systemCurrentValue === null
+        ? selectedRows
+        : [
+            {
+              institutionCode: "total",
+              institutionName: "System",
+              currentValue: systemCurrentValue,
+              share: null,
+              vsStart: calculateVsStart(systemStartValue, systemCurrentValue, startMonth === latestLoadedMonth),
+            },
+            ...selectedRows,
+          ];
     }
 
     if (viewKey === "average-ticket") {
@@ -567,7 +581,7 @@ export function CreditCardsDashboard({
   }
 
   return (
-    <section className="space-y-10">
+    <section className="space-y-10 pt-6 lg:pt-8">
       <div className="border-b border-border pb-8">
         <div className="max-w-4xl">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand">Chilean banking · monthly series</p>
@@ -652,10 +666,11 @@ export function CreditCardsDashboard({
             </div>
 
             <div className="flex flex-nowrap items-center gap-2 pb-1">
-              {(isOperationsRateDashboard ? operationsRateViews : chartViews).map((item) => (
+              {(isOperationsRateDashboard ? operationsRateViews : chartViews).map((item, index, items) => (
                 <MetricTabButton
                   key={item.key}
                   active={viewKey === item.key}
+                  tooltipAlign={index === items.length - 1 ? "right" : "center"}
                   label={item.label}
                   description={
                     !isOperationsRateDashboard
@@ -719,7 +734,7 @@ export function CreditCardsDashboard({
                   <th className="py-4 pr-6">Bank</th>
                   <th className="py-4 pr-6 text-right">{activeMetric.label}</th>
                   {shouldShowShareColumn ? <th className="py-4 pr-6 text-right">Share</th> : null}
-                  <th className="py-4 text-right">v/s MM/YY</th>
+                  <th className="py-4 text-right">v/s {formatMonthLabel(endMonth)}</th>
                 </tr>
               </thead>
               <tbody>
@@ -819,12 +834,14 @@ function ControlCard({ label, children }: { label: React.ReactNode; children: Re
 
 function MetricTabButton({
   active,
+  tooltipAlign,
   label,
   description,
   unitLabel,
   onClick,
 }: {
   active: boolean;
+  tooltipAlign?: "center" | "right";
   label: string;
   description: string;
   unitLabel: string;
@@ -847,7 +864,12 @@ function MetricTabButton({
           <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current/30 text-[10px] font-semibold leading-none text-current transition group-hover/tab:border-brand/60 group-hover/tab:text-white group-focus-visible/tab:border-brand/60 group-focus-visible/tab:text-white">
             i
           </span>
-          <span className="pointer-events-none absolute left-1/2 bottom-full z-30 mb-2 hidden w-80 max-w-[90vw] -translate-x-1/2 whitespace-normal break-words rounded-2xl border border-border bg-[#07101c] p-3 text-left text-xs leading-5 text-muted shadow-2xl group-hover/info:block group-focus-visible/info:block">
+          <span
+            className={cn(
+              "pointer-events-none absolute bottom-full z-30 mb-2 hidden w-80 max-w-[90vw] whitespace-normal break-words rounded-2xl border border-border bg-[#07101c] p-3 text-left text-xs leading-5 text-muted shadow-2xl group-hover/info:block group-focus-visible/info:block",
+              tooltipAlign === "right" ? "right-0" : "left-1/2 -translate-x-1/2"
+            )}
+          >
             <span className="block text-sm font-semibold text-white">{label}</span>
             <span className="mt-1 block">{description}</span>
             {unitLabel ? <span className="mt-1 block text-xs italic text-brand">{unitLabel}</span> : null}
@@ -903,6 +925,19 @@ function calculateSystemAverage(rows: Array<CreditCardMetricRow | OperationsRate
   );
 
   return totals.transactions > 0 ? (totals.volume * 1_000_000) / totals.transactions : null;
+}
+
+function calculateOperationsPerActiveCardSystemValue(rows: CreditCardMetricRow[]) {
+  const totals = rows.reduce(
+    (accumulator, row) => {
+      accumulator.transactions += Number(row.transaction_count);
+      accumulator.activeCards += Number(row.total_active_cards ?? 0);
+      return accumulator;
+    },
+    { transactions: 0, activeCards: 0 }
+  );
+
+  return totals.activeCards > 0 ? totals.transactions / totals.activeCards : null;
 }
 
 function calculateOperationsRateSystemValue(rows: OperationsRateMetricRow[], viewKey: OperationsRateViewKey) {
