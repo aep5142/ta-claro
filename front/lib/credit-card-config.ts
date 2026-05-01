@@ -41,7 +41,7 @@ export const chartViews = [
     label: "Transactions",
     metricType: "count" as const,
     description: "Monthly number of card operations for the selected operation.",
-    unitLabel: "",
+    unitLabel: "Number of Operations",
   },
   {
     key: "average-ticket",
@@ -55,7 +55,7 @@ export const chartViews = [
     label: "Operations per Active Card",
     metricType: "decimal" as const,
     description: "Transactions per active credit card.",
-    unitLabel: "",
+    unitLabel: "Number of Operations",
   },
 ] as const;
 

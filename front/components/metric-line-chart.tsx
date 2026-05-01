@@ -50,7 +50,7 @@ export function MetricLineChart({
 
   const minValue = Math.min(...allValues);
   const maxValue = Math.max(...allValues);
-  const valueRange = maxValue - minValue || 1;
+  const rawRange = maxValue - minValue || 1;
   const barMaxValue = Math.max(...allValues, 1);
 
   const isSingleMonth = months.length === 1;
@@ -69,19 +69,32 @@ export function MetricLineChart({
     return formatMoney(tick);
   };
 
-  const yTicks = Array.from({ length: 4 }, (_, index) => minValue + (valueRange * index) / 3).reverse();
+  const lowerPadding = metricType === "decimal" ? Math.max(rawRange * 0.15, 0.05) : metricType === "ratio" ? Math.max(rawRange * 0.15, 2) : Math.max(rawRange * 0.12, 1);
+  const upperPadding = metricType === "decimal" ? Math.max(rawRange * 0.1, 0.05) : metricType === "ratio" ? Math.max(rawRange * 0.1, 2) : Math.max(rawRange * 0.08, 1);
+  const targetStep = Math.max((maxValue - minValue + lowerPadding + upperPadding) / 3, metricType === "decimal" ? 0.05 : metricType === "ratio" ? 2 : 1);
+  const stepMagnitude = 10 ** Math.floor(Math.log10(targetStep));
+  const stepFraction = targetStep / stepMagnitude;
+  const niceStep =
+    (stepFraction <= 1 ? 1 : stepFraction <= 2 ? 2 : stepFraction <= 5 ? 5 : 10) * stepMagnitude;
+  const chartMaxValue = Math.ceil((maxValue + upperPadding) / niceStep) * niceStep;
+  const chartMinValue = Math.max(0, chartMaxValue - niceStep * 3);
+  const chartRange = chartMaxValue - chartMinValue || 1;
+  const yTickCount = chartMinValue === 0 ? 4 : 4;
+  const yTicks = Array.from({ length: yTickCount }, (_, index) => chartMinValue + niceStep * index).reverse();
   const maxTickLabelLength = Math.max(...yTicks.map((tick) => formatTickLabel(tick).length));
   const estimatedTickLabelWidth = maxTickLabelLength * 7;
   const multiMonthLeftPadding = Math.max(56, Math.min(160, estimatedTickLabelWidth + 24));
   const padding =
-    months.length === 1 ? { top: 20, right: 24, bottom: 24, left: 160 } : { top: 18, right: 18, bottom: 42, left: multiMonthLeftPadding };
+    months.length === 1
+      ? { top: 20, right: 24, bottom: 24, left: 160 }
+      : { top: 18, right: 150, bottom: 42, left: multiMonthLeftPadding };
 
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
   const xForIndex = (index: number) =>
     padding.left + (isSingleMonth ? chartWidth / 2 : (chartWidth * index) / (months.length - 1));
-  const yForValue = (value: number) => padding.top + chartHeight - ((value - minValue) / valueRange) * chartHeight;
+  const yForValue = (value: number) => padding.top + chartHeight - ((value - chartMinValue) / chartRange) * chartHeight;
   const pointRadius = months.length > 72 ? 2.2 : months.length > 36 ? 2.8 : months.length > 18 ? 3.4 : 4.2;
   const monthLabelStep =
     months.length > 96 ? 12 : months.length > 72 ? 6 : months.length > 36 ? 4 : months.length > 24 ? 3 : months.length > 12 ? 2 : 1;
@@ -117,7 +130,6 @@ export function MetricLineChart({
   const tooltipValueLabel = formatMetricValue(hoveredPoint?.value ?? 0);
   const tooltipShareLabel =
     hoveredPoint?.systemShare === null || hoveredPoint?.systemShare === undefined ? null : formatPercent(hoveredPoint.systemShare);
-
   return (
     <div className="space-y-4">
       <div className="relative w-full">
