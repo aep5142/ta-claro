@@ -254,6 +254,12 @@ This repo contains two active ETL subsystems:
 - Brand/navigation:
   - Ta-Claro logo in the top bar
   - primary sections: `Credit Cards`, `Debit Cards`, `Accounts`, `Loans`
+- Current UI state (hybrid refresh):
+  - top navbar is a centered, text-first nav with underline active state and a visual-only `Login` CTA (no auth yet)
+  - left sidebar is a minimalist text nav; Credit Cards shows the operation subroutes
+  - bank selection UI is the `Banks shown` section under the chart with `All`, `None`, and `Reset`
+  - bottom summary table includes a `VS Start` column (start-month vs end-month change) while preserving the `Others` row behavior
+  - chart + metric controls (From/To/UF + metric tabs + chart rendering) are restored to the `origin/main` implementation
 - only `Credit Cards` is functional in v1
 - `Debit Cards`, `Accounts`, and `Loans` are placeholders inside the shared shell
 - the debit-card phase should replicate the credit-card frontend pattern and interaction model, then swap in debit-card-specific data, routes, and labels rather than redesigning the shell
