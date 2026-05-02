@@ -1,102 +1,92 @@
 # Project Context
 
-This repo contains two active ETL subsystems:
+This repo has two active ETL subsystems and one active frontend demo:
 
 - UF ingestion
-- unified bank credit-card operations ingestion
+- unified bank credit-card operations ingestion, including card-count totals
+- `front/` Next.js demo shell
 
 # Runtime
 
-- Python project managed with `uv`.
-- The repo expects a root `.env`.
+- Python is managed with `uv`.
+- Root `.env` is required.
 - Tests use `pytest`.
 - When adding Python dependencies, update both `pyproject.toml` and `requirements.txt`.
 
 # Active Entrypoints
 
-- UF worker:
-  - canonical entrypoint: `uv run data/historical_api_uf.py`
-  - worker module: `data/workers/uf_worker.py`
-- Bank credit-card ops worker:
-  - canonical entrypoint: `uv run data/bank_credit_card_ops.py`
-  - worker module: `data/workers/bank_credit_card_ops_worker.py`
+- UF worker: `uv run data/historical_api_uf.py`
+- Card worker: `uv run data/bank_credit_card_ops.py`
+
+Primary worker modules:
+
+- `data/workers/uf_worker.py`
+- `data/workers/bank_credit_card_ops_worker.py`
 
 # External Services
 
-- Supabase is the active database/backend.
-- UF worker env:
-  - `SUPABASE_URL`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - `CMF_API_KEY`
-  - `BASE_ENDPOINT_CMF_UF`
-- Bank credit-card ops worker env:
-  - `SUPABASE_URL`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - optional `BASE_ENDPOINT_CMF_CARDS`
+- Supabase is the active backend/database.
+- UF env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CMF_API_KEY`, `BASE_ENDPOINT_CMF_UF`
+- Card env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, optional `BASE_ENDPOINT_CMF_CARDS`
 
-# UF State
+# UF Rules
 
-- UF stays isolated from CMF dataset state and CMF tables.
-- UF worker modules:
-  - `data/workers/uf_worker.py`
+- UF is isolated from CMF dataset sync state and CMF card tables.
+- UF modules:
   - `data/sources/uf_source.py`
   - `data/loaders/uf_loader.py`
   - `data/models/uf.py`
 - UF runs on a 5-day loop.
-- UF sync is source-driven:
-  - fetch CMF historical UF source data
-  - request two months ahead so the latest published UF date is exposed
-  - compare latest source UF date against latest stored `public.uf_values.uf_date`
-  - no-op when source is unchanged
-  - upsert only UF rows newer than the latest stored date
-- UF source parsing accepts:
-  - `DD-MM-YYYY`
-  - `YYYY-MM-DD`
-  - `DD/MM/YYYY`
-- UF value parsing accepts Chilean-formatted numeric strings and numeric values.
+- Sync is source-driven:
+  - fetch historical UF from CMF
+  - request two months ahead so the latest published UF date is visible
+  - compare source latest date vs `public.uf_values.uf_date`
+  - no-op if unchanged
+  - upsert only rows newer than the latest stored date
+- Accepted UF date formats: `DD-MM-YYYY`, `YYYY-MM-DD`, `DD/MM/YYYY`
+- UF values may be Chilean-formatted numeric strings or numeric values.
 
-# Bank Credit-Card Ops State
+# Card Pipeline Rules
 
-- The active card subsystem is the unified ops pipeline plus monthly card-base counts, all run by the same worker.
-- Canonical operation types are:
+- The active card subsystem is one unified worker covering:
+  - monthly operation metrics
+  - monthly card-base counts
+  - operations-rate totals
+- Canonical operation types:
   - `Compras`
   - `Avance en Efectivo`
   - `Cargos por Servicio`
-- The active operations-rate category is:
-  - `Operations Rate`
-- All 6 current credit-card endpoints use `FechaInicio=20090401`.
-- `FechaFin` is set to the run date.
-- The source builder always uses `from=reload`.
-- Card-base endpoints use the same CMF builder and share the same worker cycle.
-- The parser derives `institution_code` from `source_codigo` by:
-  - splitting on `_`
-  - finding `AGIFI`
-  - taking the next token
-- This `AGIFI` rule is valid for all current credit-card operation endpoints.
+- Card-count canonical operation type: `Total Activation Rate`
+- All 6 current operation endpoints use:
+  - `FechaInicio=20090401`
+  - `FechaFin` = run date
+  - `from=reload`
+- Card-base endpoints use the same CMF builder and worker cycle.
+- `institution_code` is derived from `source_codigo` by splitting on `_`, locating `AGIFI`, and taking the next token.
 
-# Active Card Worker Flow
+# Card Worker Flow
 
-- The worker reads active endpoint rows from `public.cmf_datasets`.
+- Read active endpoint rows from `public.cmf_datasets`.
 - Metadata is endpoint-grained:
   - one `transaction_count` row per operation type
   - one `nominal_volume` row per operation type
-  - 6 rows total for the current 3 operations
-- The same worker also reads the 4 card-base endpoint rows used to derive active-card totals and cards-with-operations totals.
-- The worker groups endpoint rows by `operation_type`.
-- For each operation type it:
-  - fetches both endpoint tags
-  - detects the latest source month for each endpoint
-  - compares each endpoint against its own `public.cmf_dataset_sync_state` row
-  - no-ops only when both endpoint source months are unchanged
-  - writes unified raw rows
-  - writes unified curated rows
-  - enriches curated ops rows with `total_active_cards` from `public.bank_credit_card_counts_curated` (be careful to paginate Supabase/PostgREST reads; default page limits can silently truncate lookups)
-  - records success or failure on both endpoint sync-state rows
-- For `Operations Rate` it writes the monthly bank-level totals needed by the public operations-rate view.
-- Failed runs do not advance sync state.
-- Ops sync state remains separate from UF sync state.
+  - 6 rows total for the 3 active operations
+- Also read the 4 card-count endpoint rows used to derive active cards and cards with operations.
+- Group datasets by `operation_type`.
+- For each operation type:
+  - fetch both endpoint tags
+  - detect the latest source month for each endpoint
+  - compare each endpoint to its own `public.cmf_dataset_sync_state` row
+  - no-op only if both source months are unchanged
+  - write unified raw rows and unified curated rows
+  - enrich curated ops rows with `total_active_cards` from `public.bank_credit_card_counts_curated`
+  - record success/failure on both endpoint sync-state rows
+- For `Total Activation Rate`, write the bank-month totals used by the public operations-rate view.
+- Failed runs must not advance sync state.
+- Ops sync state stays separate from UF sync state.
+- Be careful to paginate Supabase/PostgREST reads; default page limits can silently truncate lookups.
 
-# Active Card Source / Transform / Loader Modules
+# Active ETL Modules
 
 - Sources:
   - `data/sources/bank_credit_card_operations.py`
@@ -107,65 +97,31 @@ This repo contains two active ETL subsystems:
   - `data/loaders/bank_credit_card_ops_sync_state_loader.py`
 - Models:
   - `data/models/bank_credit_card_operations.py`
+  - `data/models/uf.py`
 
 # Active Supabase Schema
 
-- UF tables:
+- UF:
   - `public.uf_values`
   - `public.uf_sync_runs`
-- Shared CMF orchestration tables:
+- Shared orchestration:
   - `public.cmf_datasets`
   - `public.cmf_dataset_sync_state`
-- Unified bank credit-card ops storage:
+- Card ops:
   - `public.bank_credit_card_ops_raw`
   - `public.bank_credit_card_ops_curated`
-- Unified bank credit-card public read surface:
-  - `public.bank_credit_card_ops_metrics` as a view
-- Unified bank credit-card counts storage:
+  - `public.bank_credit_card_ops_metrics` view
+- Card counts / operations rate:
   - `public.bank_credit_card_counts_raw`
   - `public.bank_credit_card_counts_curated`
-- Unified bank credit-card operations-rate public read surface:
-  - `public.bank_credit_card_operations_rate_metrics` as a view
+  - `public.bank_credit_card_operations_rate_metrics` view
 
-# Card Data Contract
+# Data Contracts
 
-- Raw ops rows store:
-  - `operation_type`
-  - `dataset_code`
-  - `institution_code`
-  - `institution_name`
-  - `period_month`
-  - `transaction_count`
-  - `nominal_volume_millions_clp`
-- Curated ops rows store:
-  - `operation_type`
-  - `dataset_code`
-  - `institution_code`
-  - `institution_name`
-  - `period_month`
-  - `transaction_count`
-  - `nominal_volume_millions_clp`
-  - `uf_date_used`
-  - `uf_value_used`
-  - `real_value_uf`
-  - `average_ticket_uf`
-  - `total_active_cards`
-  - `operations_per_active_card`
-  - `source_dataset_code`
-  - `updated_at`
-- Volume conversion rules:
-  - raw nominal volume is in millions of CLP
-  - curated nominal volume is in millions of CLP
-  - UF lookup uses the 15th day of the same month
-  - `real_value_uf = nominal_volume_millions_clp / uf_value_used`
-  - `average_ticket_uf = real_value_uf / transaction_count * 1000000`
-- Card-count rows store:
-  - `dataset_code`
-  - `institution_code`
-  - `institution_name`
-  - `period_month`
-  - `card_count`
-- Curated card-count rows store:
+- Raw ops rows: `operation_type`, `dataset_code`, `institution_code`, `institution_name`, `period_month`, `transaction_count`, `nominal_volume_millions_clp`
+- Curated ops rows add: `uf_date_used`, `uf_value_used`, `real_value_uf`, `average_ticket_uf`, `total_active_cards`, `operations_per_active_card`, `source_dataset_code`, `updated_at`
+- Card-count rows: `dataset_code`, `institution_code`, `institution_name`, `period_month`, `card_count`
+- Curated card-count rows include:
   - `active_cards_primary`
   - `active_cards_supplementary`
   - `total_active_cards`
@@ -175,133 +131,122 @@ This repo contains two active ETL subsystems:
   - `operations_rate`
 - All stored timestamps should use Santiago de Chile time.
 
+Volume/UF rules:
+
+- Raw and curated nominal volume are both stored in millions of CLP.
+- UF lookup uses the 15th day of the same month.
+- `real_value_uf = nominal_volume_millions_clp / uf_value_used`
+- `average_ticket_uf = real_value_uf / transaction_count * 1000000`
+
 # Public Read Surface
 
-- `public.bank_credit_card_ops_metrics` is a view only, not a persisted metrics table.
-- It exposes the canonical stored curated fields, including `nominal_volume_millions_clp`, `total_active_cards`, and `operations_per_active_card`.
-- It does not expose:
-  - `average_ticket_clp_today`
-  - `operations_rate`
-- CLP convenience calculations should happen at query time outside the stored schema.
-- `public.bank_credit_card_operations_rate_metrics` exposes the bank-month totals used by the `Operations Rate` route.
-  - it also exposes the primary and supplementary count fields needed to derive supplementary/primary ratios in the browser.
+- `public.bank_credit_card_ops_metrics` is a view, not a persisted metrics table.
+- It exposes canonical curated fields including `nominal_volume_millions_clp`, `total_active_cards`, and `operations_per_active_card`.
+- It does not expose `average_ticket_clp_today` or `operations_rate`.
+- CLP convenience calculations should happen at query time, outside stored schema.
+- `public.bank_credit_card_operations_rate_metrics` exposes the bank-month totals for the activation-metrics route, including primary/supplementary card-count fields used in the browser.
 
 # SQL Assets
 
+Active migration set:
+
 - `db/001_cmf_foundation.sql`
-  - shared CMF registry/state tables
-  - unified bank credit-card ops raw/curated tables
 - `db/002_uf_source_driven_sync.sql`
-  - UF singleton source-driven sync state
 - `db/003_bank_credit_card_ops_views.sql`
-  - unified public ops metrics view
 - `db/004_drop_obsolete_credit_card_views.sql`
-  - removes obsolete purchase-only views and tables from the old split design
 - `db/005_drop_obsolete_credit_card_tables.sql`
-  - removes obsolete split raw/curated tables
 - `db/006_split_cmf_card_endpoint_metadata.sql`
-  - splits shared CMF metadata into 6 endpoint rows
 - `db/007_fix_card_ops_start_dates.sql`
-  - normalizes all current credit-card endpoint `start_date` values to `2009-04-01`
 - `db/008_credit_card_card_counts.sql`
-  - creates the card-count tables and adds the 4 card-base datasets
 - `db/009_credit_card_metrics_rollback.sql`
-  - rolls curated ops volume back to millions, updates the metrics view, and adds the operations-rate public view
+- `db/010_operations_rate_add_supplementary_fields.sql`
+- `db/011_rename_operations_rate_to_total_activation_rate.sql`
+- `db/012_operations_rate_view_add_cards_with_operations_fields.sql`
 
 # Repo Structure
 
-- `data/`
-  - `workers/`
-  - `sources/`
-  - `transforms/`
-  - `loaders/`
-  - `models/`
-- `db/`
-- `front/`
-- `shared/`
-- `tests/`
+- Active runtime code lives in `data/`, `db/`, `front/`, `shared/`, and `tests/`.
+- Deprecated split-CMF code is kept under `archive/` directories and is not part of the active runtime path.
 
-# Archive Policy
+# Testing And Deployment
 
-- Deprecated split-CMF code is kept under `archive/` folders inside ETL layer directories.
-- Archived code is not part of the active runtime path.
-- Railway should point only at the active entrypoints.
+- Active card tests use unified ops naming.
+- Source tests include a unified live-payload regression fixture for the current card ops payload shape.
+- Old split-CMF tests/fixtures are removed from active `tests/`.
+- Railway should run workers as worker services, not web apps.
+- Card worker deploy command: `uv run data/bank_credit_card_ops.py`
 
-# Testing State
+# Frontend Direction
 
-- Active card test coverage follows unified ops naming.
-- Active source tests include a unified live-payload regression fixture for the current credit-card ops payload shape.
-- Old split-CMF tests and fixtures have been removed from the active `tests/` tree.
+- `front/` is an active Next.js + Tailwind demo shell.
+- Install with `npm install` in `front/`.
+- Run with `npm run dev` in `front/`.
+- Validate with `npm run build` in `front/`.
+- Future auth is expected, and Clerk is the likely provider, but auth is not approved yet.
+- Do not add Clerk config, auth middleware, protected routes, user/session models, or auth tables until an auth phase is explicitly approved.
 
-# Deployment Notes
+# Frontend Product Rules
 
-- Railway should run workers as worker services, not request/response web apps.
-- Card worker deploy command:
-  - `uv run data/bank_credit_card_ops.py`
+- Top bar uses the Ta-Claro logo.
+- Primary sections are `Credit Cards`, `Debit Cards`, `Accounts`, `Loans`.
+- Only `Credit Cards` is functional in v1; the others are placeholders inside the shared shell.
+- If asked to build debit cards, first ask for debit-card metrics and source endpoints before planning implementation.
+- Debit-card work should reuse the credit-card frontend pattern and interaction model rather than redesigning the shell.
 
-# Frontend/Auth Direction
+Credit-card routes:
 
-- The future website is expected to support authentication.
-- Clerk is the likely auth provider, but no auth provider has been implemented or finalized yet.
-- Do not add Clerk config, auth middleware, protected routes, user/session models, or auth tables until an auth-specific phase is approved.
+- `/credit-cards/purchases`
+- `/credit-cards/cash-advances`
+- `/credit-cards/fees`
+- `/credit-cards/total-activation-rate`
+- `/credit-cards/operations-rate` redirects to `/credit-cards/total-activation-rate` preserving `view`
 
-# Frontend Demo State
+Current shell/UI constraints:
 
-- The `front/` app is an active Next.js + Tailwind demo shell that mirrors the Artificial Analysis layout.
-- Frontend runtime:
-  - install deps in `front/` with `npm install`
-  - run locally with `npm run dev` from `front/`
-  - validate with `npm run build` from `front/`
-- Brand/navigation:
-  - Ta-Claro logo in the top bar
-  - primary sections: `Credit Cards`, `Debit Cards`, `Accounts`, `Loans`
-- Current UI state (hybrid refresh):
-  - top navbar is a centered, text-first nav with underline active state and a visual-only `Login` CTA (no auth yet)
-  - left sidebar is a minimalist text nav; Credit Cards shows the operation subroutes
-  - bank selection UI is the `Banks shown` section under the chart with `All`, `None`, and `Reset`
-  - bottom summary table includes a `VS Start` column (start-month vs end-month change) while preserving the `Others` row behavior
-  - chart + metric controls (From/To/UF + metric tabs + chart rendering) are restored to the `origin/main` implementation
-- only `Credit Cards` is functional in v1
-- `Debit Cards`, `Accounts`, and `Loans` are placeholders inside the shared shell
-- the debit-card phase should replicate the credit-card frontend pattern and interaction model, then swap in debit-card-specific data, routes, and labels rather than redesigning the shell
-- when the user asks to work on debit cards, first ask for the debit-card metrics and source endpoints before planning implementation details
-- credit-card subsections/routes:
-  - `Purchases` at `/credit-cards/purchases`
-  - `Cash Advances` at `/credit-cards/cash-advances`
-  - `Fees` at `/credit-cards/fees`
-- `Operations Rate` at `/credit-cards/operations-rate`
-- Credit-card demo behavior:
-  - analysis tab is route-shareable via the `view` query param
-  - render submetrics: `Volume`, `Transactions`, `Avg. Transaction`, `Operations per Active Card`
-  - render `Operations per Active Card` on the operation pages
-  - render `Total Active Cards`, `Total Cards with Operations`, and `Operations Rate` on the operations-rate page
-  - render supplementary/primary ratio metrics on the operations-rate page from the curated primary/supplementary count fields
-  - main visualization is a multi-bank line chart over time
-  - time range is month-based and displayed as `MM/YY`
-  - default range is the last 12 months ending at the latest available month for the selected operation
-  - users can select and deselect banks
-  - chart points support hover/focus tooltip inspection
-  - bank labels come from a frontend mapping sourced from `others/bank-mapping.txt`
-  - fixed bank colors are derived deterministically from the bank code
-  - the sidebar uses a `Credit Cards` macro title and no `Live` badges
-  - the dashboard copy describes the product instead of repeating the shareable route
-  - use UF-adjusted CLP volume for `Volume ($)`
-  - the UF control is labeled `UF value`, uses a fixed `$` prefix, and formats thousands with `.`
-  - default UF is the latest UF up to today in `America/Santiago`
-  - allow a user-entered UF override for CLP conversions without resetting bank selection
-  - omit last-visible/last-loaded month copy because the range is already shown by Start and End
-  - the market-share table includes an `Others` row when the selected metric is share-based
-  - bank selector pills show only the bank name
-  - the layout uses the full available width and the chart does not require horizontal scrolling
-  - when the selected range has a single month, the visualization switches to a horizontal bar chart sorted descending by value
-  - single-month bar labels stay outside the bars and reserve right-side space so the biggest value never clips
-  - chart hover tooltips include a `XX% of the system` line computed from system-wide month totals, not from the selected banks (omit this line for `Transactions`)
-  - money values render with a fixed `$` prefix instead of a trailing `CLP`
-  - point markers shrink for long date ranges
-  - money display uses integer values with `.` thousands separators
-  - percentage display uses `,` as the decimal separator with 1 decimal place
-  - frontend must auto-paginate Supabase reads for larger date ranges and must not treat missing rows as zero values
-- Data access:
-  - browser reads use Supabase anon/public key
-  - frontend reads `public.bank_credit_card_ops_metrics`, `public.bank_credit_card_operations_rate_metrics`, and `public.uf_values`
-  - the browser path is public read-only; no login in v1
+- Top navbar is centered, text-first, with underline active state and a visual-only `Login` CTA.
+- Left sidebar is minimalist text nav; Credit Cards shows the operation subroutes.
+- Bank selection lives under the chart in `Banks shown` with `All`, `None`, and `Reset`.
+- Bottom summary table includes `VS Start` and preserves the `Others` row behavior.
+- Chart controls and rendering should stay aligned with the restored `origin/main` implementation.
+- Sidebar uses a `Credit Cards` macro title and no `Live` badges.
+- Dashboard copy should describe the product, not repeat the shareable route.
+- Layout should use full width without requiring horizontal chart scroll.
+
+Credit-card behavior:
+
+- Analysis tab is shareable via the `view` query param.
+- Operation pages expose `Volume`, `Transactions`, `Avg. Transaction`, and `Operations per Active Card`.
+- Operation Metrics page exposes `Total Active Cards`, `Total Cards with Operations`, `Total Activation Rate`, `Primary Activation Rate`, `Supplementary Activation Rate`, and `Supplementary Rate`.
+- Main visualization is a multi-bank line chart over time.
+- If the selected range is a single month, switch to a horizontal bar chart sorted descending.
+- Bar labels stay outside bars with enough right-side space to avoid clipping.
+- Default range is the last 12 months ending at the latest available month for the selected operation.
+- Time range is month-based and displayed as `MM/YY`.
+- Users can select/deselect banks.
+- Bank labels come from `others/bank-mapping.txt`.
+- Bank colors are deterministic from bank code.
+- Point markers shrink for long date ranges.
+- Tooltips support hover/focus inspection.
+- Tooltip share line should show `XX% of the system` using system-wide month totals, not selected-bank totals; omit that line for `Transactions`.
+
+Formatting and metric rules:
+
+- `Volume ($)` uses UF-adjusted CLP volume.
+- UF control label is `UF value`, uses a fixed `$` prefix, and formats thousands with `.`
+- Default UF is the latest UF up to today in `America/Santiago`.
+- User UF overrides must not reset bank selection.
+- Money values use a fixed `$` prefix and integer formatting with `.` thousands separators.
+- Percentages use `,` as decimal separator with 1 decimal place.
+- Omit last-visible/last-loaded month copy because Start/End already show the range.
+- Share-based tables include an `Others` row.
+- Bank selector pills show only the bank name.
+
+Frontend data access:
+
+- Browser reads use the Supabase anon/public key.
+- Frontend reads:
+  - `public.bank_credit_card_ops_metrics`
+  - `public.bank_credit_card_operations_rate_metrics`
+  - `public.uf_values`
+- The browser path is public read-only; there is no login in v1.
+- Frontend must auto-paginate Supabase reads for larger date ranges and must not treat missing rows as zero values.
