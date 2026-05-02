@@ -76,3 +76,15 @@ def test_cmf_ops_cleanup_sql_drops_obsolete_split_tables():
     assert "drop table if exists public.bank_credit_card_transaction_count_curated;" in sql
     assert "drop table if exists public.bank_credit_card_purchase_volume_raw;" in sql
     assert "drop table if exists public.bank_credit_card_purchase_volume_curated;" in sql
+
+
+def test_rename_operations_rate_sql_updates_card_count_operation_type():
+    sql = Path("db/011_rename_operations_rate_to_total_activation_rate.sql").read_text()
+
+    assert "update public.cmf_datasets" in sql
+    assert "Total Activation Rate" in sql
+    assert "where operation_type = 'Operations Rate'" in sql
+    assert "bank_credit_card_active_cards_primary" in sql
+    assert "bank_credit_card_active_cards_supplementary" in sql
+    assert "bank_credit_card_cards_with_operations_primary" in sql
+    assert "bank_credit_card_cards_with_operations_supplementary" in sql

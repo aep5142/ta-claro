@@ -49,7 +49,7 @@ insert into public.cmf_datasets (
 ) values
     (
         'bank_credit_card_active_cards_primary',
-        'Operations Rate',
+        'Total Activation Rate',
         'active_cards_primary',
         'SBIF_TCRED_BANC_VIGTIT_AGIFI_NUM',
         'Tarjetas de credito bancarias vigentes titulares por institucion',
@@ -62,7 +62,7 @@ insert into public.cmf_datasets (
     ),
     (
         'bank_credit_card_active_cards_supplementary',
-        'Operations Rate',
+        'Total Activation Rate',
         'active_cards_supplementary',
         'SBIF_TCRED_BANC_VIGADIC_AGIFI_NUM',
         'Tarjetas de credito bancarias vigentes adicionales por institucion',
@@ -75,7 +75,7 @@ insert into public.cmf_datasets (
     ),
     (
         'bank_credit_card_cards_with_operations_primary',
-        'Operations Rate',
+        'Total Activation Rate',
         'cards_with_operations_primary',
         'SBIF_TCRED_BANC_COPETIT_AGIFI_NUM',
         'Tarjetas de credito bancarias titulares con operaciones por institucion',
@@ -88,7 +88,7 @@ insert into public.cmf_datasets (
     ),
     (
         'bank_credit_card_cards_with_operations_supplementary',
-        'Operations Rate',
+        'Total Activation Rate',
         'cards_with_operations_supplementary',
         'SBIF_TCRED_BANC_COPEADIC_AGIFI_NUM',
         'Tarjetas de credito bancarias adicionales con operaciones por institucion',

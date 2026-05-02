@@ -337,7 +337,7 @@ def test_load_active_card_counts_config_reads_registry_rows():
         datasets=[
             {
                 "dataset_code": BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
-                "operation_type": "Operations Rate",
+                "operation_type": "Total Activation Rate",
                 "measure_kind": CMF_MEASURE_KIND_ACTIVE_CARDS_PRIMARY,
                 "source_tag": "active-primary",
                 "source_endpoint_base": "https://cmf.example",
@@ -347,7 +347,7 @@ def test_load_active_card_counts_config_reads_registry_rows():
             },
             {
                 "dataset_code": BANK_CREDIT_CARD_ACTIVE_CARDS_SUPPLEMENTARY_DATASET,
-                "operation_type": "Operations Rate",
+                "operation_type": "Total Activation Rate",
                 "measure_kind": CMF_MEASURE_KIND_ACTIVE_CARDS_SUPPLEMENTARY,
                 "source_tag": "active-supplementary",
                 "source_endpoint_base": "https://cmf.example",
@@ -357,7 +357,7 @@ def test_load_active_card_counts_config_reads_registry_rows():
             },
             {
                 "dataset_code": BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET,
-                "operation_type": "Operations Rate",
+                "operation_type": "Total Activation Rate",
                 "measure_kind": CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_PRIMARY,
                 "source_tag": "ops-primary",
                 "source_endpoint_base": "https://cmf.example",
@@ -367,7 +367,7 @@ def test_load_active_card_counts_config_reads_registry_rows():
             },
             {
                 "dataset_code": BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET,
-                "operation_type": "Operations Rate",
+                "operation_type": "Total Activation Rate",
                 "measure_kind": CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_SUPPLEMENTARY,
                 "source_tag": "ops-supplementary",
                 "source_endpoint_base": "https://cmf.example",
