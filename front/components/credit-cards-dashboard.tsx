@@ -1023,7 +1023,7 @@ function calculateSystemTotal(
 }
 
 function getEditorialTitle(operationLabel: string) {
-  if (operationLabel === "Total Activation Rate") {
+  if (operationLabel === "Operation Metrics") {
     return "Credit-card activation metrics across the system";
   }
 

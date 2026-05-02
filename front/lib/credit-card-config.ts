@@ -4,7 +4,7 @@ export const creditCardOperations = [
   { slug: "fees", label: "Fees", operation: "Cargos por Servicio" },
   {
     slug: "total-activation-rate",
-    label: "Total Activation Rate",
+    label: "Operation Metrics",
     operation: "Total Activation Rate",
   },
 ] as const;
@@ -17,7 +17,7 @@ export const operationLabelMap: Record<OperationName, string> = {
   Compras: "Purchases",
   "Avance en Efectivo": "Cash Advances",
   "Cargos por Servicio": "Fees",
-  "Total Activation Rate": "Total Activation Rate",
+  "Total Activation Rate": "Operation Metrics",
 };
 
 export function operationFromSlug(slug: string): OperationName | null {
