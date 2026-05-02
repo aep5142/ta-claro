@@ -88,3 +88,12 @@ def test_rename_operations_rate_sql_updates_card_count_operation_type():
     assert "bank_credit_card_active_cards_supplementary" in sql
     assert "bank_credit_card_cards_with_operations_primary" in sql
     assert "bank_credit_card_cards_with_operations_supplementary" in sql
+
+
+def test_operations_rate_view_sql_exposes_primary_and_supplementary_operation_counts():
+    sql = Path("db/012_operations_rate_view_add_cards_with_operations_fields.sql").read_text()
+
+    assert "drop view if exists public.bank_credit_card_operations_rate_metrics" in sql
+    assert "create view public.bank_credit_card_operations_rate_metrics" in sql
+    assert "cards_with_operations_primary" in sql
+    assert "cards_with_operations_supplementary" in sql
