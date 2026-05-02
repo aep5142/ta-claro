@@ -2,7 +2,11 @@ export const creditCardOperations = [
   { slug: "purchases", label: "Purchases", operation: "Compras" },
   { slug: "cash-advances", label: "Cash Advances", operation: "Avance en Efectivo" },
   { slug: "fees", label: "Fees", operation: "Cargos por Servicio" },
-  { slug: "operations-rate", label: "Operations Rate", operation: "Operations Rate" },
+  {
+    slug: "total-activation-rate",
+    label: "Total Activation Rate",
+    operation: "Total Activation Rate",
+  },
 ] as const;
 
 export const operationSlugs = creditCardOperations.map((item) => item.slug);
@@ -13,7 +17,7 @@ export const operationLabelMap: Record<OperationName, string> = {
   Compras: "Purchases",
   "Avance en Efectivo": "Cash Advances",
   "Cargos por Servicio": "Fees",
-  "Operations Rate": "Operations Rate",
+  "Total Activation Rate": "Total Activation Rate",
 };
 
 export function operationFromSlug(slug: string): OperationName | null {
@@ -75,17 +79,31 @@ export const operationsRateViews = [
     unitLabel: "Number of cards with operations (#).",
   },
   {
-    key: "operations-rate",
-    label: "Operations Rate",
+    key: "total-activation-rate",
+    label: "Total Activation Rate",
     metricType: "ratio" as const,
     description: "Share of active cards that recorded operations in the month.",
     unitLabel: "Percentage of active cards.",
   },
   {
+    key: "primary-activation-rate",
+    label: "Primary Activation Rate",
+    metricType: "ratio" as const,
+    description: "Primary cards with operations of total of active primary cards.",
+    unitLabel: "Percentage of active primary cards.",
+  },
+  {
+    key: "supplementary-activation-rate",
+    label: "Supplementary Activation Rate",
+    metricType: "ratio" as const,
+    description: "Supplementary cards with operations of total of active supplementary cards.",
+    unitLabel: "Percentage of active supplementary cards.",
+  },
+  {
     key: "supplementary-rate",
     label: "Supplementary Rate",
     metricType: "ratio" as const,
-    description: "Share of Primary Cards that have a Suplementary Card.",
+    description: "Share of primary cards that have a supplementary card.",
     unitLabel: "Percentage of primary cards.",
   },
 ] as const;
@@ -113,6 +131,8 @@ export function isOperationsRateViewKey(value: string | undefined): value is Ope
   return Boolean(value && value in operationsRateViewByKey);
 }
 
-export function isOperationsRateOperation(operation: OperationName): operation is "Operations Rate" {
-  return operation === "Operations Rate";
+export function isOperationsRateOperation(
+  operation: OperationName
+): operation is "Total Activation Rate" {
+  return operation === "Total Activation Rate";
 }

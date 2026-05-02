@@ -32,7 +32,7 @@ export function CreditCardSidebar({ section, activeOperation }: CreditCardSideba
               <Link
                 key={item.slug}
                 href={`/credit-cards/${item.slug}?view=${
-                  item.slug === "operations-rate" ? "total-active-cards" : "volume"
+                  item.slug === "total-activation-rate" ? "total-active-cards" : "volume"
                 }`}
                 className={cn(
                   "block border-l-2 pl-4 text-[15px] transition",

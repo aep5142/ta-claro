@@ -4,7 +4,7 @@ import type { OperationName } from "@/lib/credit-card-config";
 const METRICS_PAGE_SIZE = 1000;
 
 export type CreditCardMetricRow = {
-  operation_type: Exclude<OperationName, "Operations Rate">;
+  operation_type: Exclude<OperationName, "Total Activation Rate">;
   dataset_code: string;
   institution_code: string;
   institution_name: string;
@@ -28,12 +28,14 @@ export type OperationsRateMetricRow = {
   total_active_cards: string;
   active_cards_primary: string;
   active_cards_supplementary: string;
+  cards_with_operations_primary: string;
+  cards_with_operations_supplementary: string;
   total_cards_with_operations: string;
   operations_rate: string | null;
 };
 
 export async function fetchDatasetBoundary(
-  operation: Exclude<OperationName, "Operations Rate">,
+  operation: Exclude<OperationName, "Total Activation Rate">,
   boundary: "latest" | "earliest"
 ): Promise<string | null> {
   const supabase = getSupabaseBrowserClient();
@@ -77,7 +79,7 @@ export async function fetchLatestUfValue(todayIso: string): Promise<{ ufDate: st
 }
 
 export async function fetchCreditCardMetrics(
-  operation: Exclude<OperationName, "Operations Rate">,
+  operation: Exclude<OperationName, "Total Activation Rate">,
   startDateIso: string,
   endDateIso: string
 ): Promise<CreditCardMetricRow[]> {
@@ -148,7 +150,7 @@ export async function fetchOperationsRateMetrics(
     const { data, error } = await supabase
       .from("bank_credit_card_operations_rate_metrics")
       .select(
-        "institution_code,institution_name,period_month,total_active_cards,active_cards_primary,active_cards_supplementary,total_cards_with_operations,operations_rate"
+        "institution_code,institution_name,period_month,total_active_cards,active_cards_primary,active_cards_supplementary,cards_with_operations_primary,cards_with_operations_supplementary,total_cards_with_operations,operations_rate"
       )
       .gte("period_month", startDateIso)
       .lte("period_month", endDateIso)

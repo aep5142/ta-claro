@@ -119,7 +119,7 @@ export function CreditCardsDashboard({
           ]);
 
           if (!latestMonth || !earliestMonth) {
-            throw new Error("No operations-rate data is available.");
+            throw new Error("No activation-rate data is available.");
           }
 
           const boundedStart = normalizeMonthValue(
@@ -589,7 +589,7 @@ export function CreditCardsDashboard({
             {getEditorialTitle(operationLabelMap[operation])}
           </h1>
           <p className="mt-5 max-w-none whitespace-nowrap text-base leading-7 text-muted sm:text-lg">
-            Monthly credit-card analysis across banks, with UF-adjusted CLP values for volume and ticket metrics, plus the active-card and operations-rate views.
+            Monthly credit-card analysis across banks, with UF-adjusted CLP values for volume and ticket metrics, plus the active-card and activation-rate views.
           </p>
         </div>
       </div>
@@ -803,8 +803,20 @@ function getOperationsRateMetricValue(
   if (viewKey === "total-cards-with-operations") {
     return Number(row.total_cards_with_operations);
   }
-  if (viewKey === "operations-rate") {
+  if (viewKey === "total-activation-rate") {
     return row.operations_rate === null ? null : Number(row.operations_rate) * 100;
+  }
+  if (viewKey === "primary-activation-rate") {
+    const activeCardsPrimary = Number(row.active_cards_primary);
+    return activeCardsPrimary > 0
+      ? (Number(row.cards_with_operations_primary) / activeCardsPrimary) * 100
+      : null;
+  }
+  if (viewKey === "supplementary-activation-rate") {
+    const activeCardsSupplementary = Number(row.active_cards_supplementary);
+    return activeCardsSupplementary > 0
+      ? (Number(row.cards_with_operations_supplementary) / activeCardsSupplementary) * 100
+      : null;
   }
   if (viewKey === "supplementary-rate") {
     const primaryCards = Number(row.active_cards_primary);
@@ -951,6 +963,10 @@ function calculateOperationsRateSystemValue(rows: OperationsRateMetricRow[], vie
       accumulator.activeCardsPrimary += Number(row.active_cards_primary);
       accumulator.activeCardsSupplementary += Number(row.active_cards_supplementary);
       accumulator.totalCardsWithOperations += Number(row.total_cards_with_operations);
+      accumulator.totalCardsWithOperationsPrimary += Number(row.cards_with_operations_primary);
+      accumulator.totalCardsWithOperationsSupplementary += Number(
+        row.cards_with_operations_supplementary
+      );
       return accumulator;
     },
     {
@@ -958,6 +974,8 @@ function calculateOperationsRateSystemValue(rows: OperationsRateMetricRow[], vie
       activeCardsPrimary: 0,
       activeCardsSupplementary: 0,
       totalCardsWithOperations: 0,
+      totalCardsWithOperationsPrimary: 0,
+      totalCardsWithOperationsSupplementary: 0,
     }
   );
 
@@ -967,8 +985,18 @@ function calculateOperationsRateSystemValue(rows: OperationsRateMetricRow[], vie
   if (viewKey === "total-cards-with-operations") {
     return totals.totalCardsWithOperations;
   }
-  if (viewKey === "operations-rate") {
+  if (viewKey === "total-activation-rate") {
     return totals.totalActiveCards > 0 ? (totals.totalCardsWithOperations / totals.totalActiveCards) * 100 : null;
+  }
+  if (viewKey === "primary-activation-rate") {
+    return totals.activeCardsPrimary > 0
+      ? (totals.totalCardsWithOperationsPrimary / totals.activeCardsPrimary) * 100
+      : null;
+  }
+  if (viewKey === "supplementary-activation-rate") {
+    return totals.activeCardsSupplementary > 0
+      ? (totals.totalCardsWithOperationsSupplementary / totals.activeCardsSupplementary) * 100
+      : null;
   }
   if (viewKey === "supplementary-rate") {
     return totals.activeCardsPrimary > 0
@@ -995,8 +1023,8 @@ function calculateSystemTotal(
 }
 
 function getEditorialTitle(operationLabel: string) {
-  if (operationLabel === "Operations Rate") {
-    return "Credit-card operations rate across the system";
+  if (operationLabel === "Total Activation Rate") {
+    return "Credit-card activation metrics across the system";
   }
 
   return `${operationLabel} bank by bank`;
