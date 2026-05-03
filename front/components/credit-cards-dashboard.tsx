@@ -179,10 +179,9 @@ export function CreditCardsDashboard({
 
     const { earliestMonth, latestMonth } = boundaryState;
     const defaultStart = normalizeMonthValue(addMonths(parseMonthValue(latestMonth), -12).toISOString().slice(0, 7));
-    const boundedDefaultStart = defaultStart < earliestMonth ? earliestMonth : defaultStart;
-    const rawStart = startMonthParam && /^\d{4}-\d{2}$/.test(startMonthParam) ? normalizeMonthValue(startMonthParam) : boundedDefaultStart;
+    const rawStart = startMonthParam && /^\d{4}-\d{2}$/.test(startMonthParam) ? normalizeMonthValue(startMonthParam) : defaultStart;
     const rawEnd = endMonthParam && /^\d{4}-\d{2}$/.test(endMonthParam) ? normalizeMonthValue(endMonthParam) : latestMonth;
-    const safeStart = rawStart < earliestMonth ? earliestMonth : rawStart > latestMonth ? latestMonth : rawStart;
+    const safeStart = rawStart > latestMonth ? latestMonth : rawStart;
     const safeEnd = rawEnd < earliestMonth ? earliestMonth : rawEnd > latestMonth ? latestMonth : rawEnd;
     const normalizedStart = safeStart > safeEnd ? safeEnd : safeStart;
     const normalizedEnd = safeEnd < normalizedStart ? normalizedStart : safeEnd;
