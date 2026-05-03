@@ -153,7 +153,7 @@ export function CreditCardSidebar({
     if (boundaryState) {
       const earliest = boundaryState.earliestMonth;
       const latest = boundaryState.latestMonth;
-      const defaultStart = addMonths(latest, -11) < earliest ? earliest : addMonths(latest, -11);
+      const defaultStart = addMonths(latest, -12) < earliest ? earliest : addMonths(latest, -12);
 
       const startParam = searchParams.get("start");
       const endParam = searchParams.get("end");
