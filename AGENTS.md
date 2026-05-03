@@ -211,6 +211,15 @@ Current shell/UI constraints:
 - Sidebar uses a `Credit Cards` macro title and no `Live` badges.
 - Dashboard copy should describe the product, not repeat the shareable route.
 - Layout should use full width without requiring horizontal chart scroll.
+- Mobile baseline is required:
+  - no text overlap/clipping at small widths
+  - no forced page-level horizontal overflow on phone screens
+  - controls remain tappable and readable down to ~320px width
+- On screens below `lg`, Credit Cards navigation/inputs use a collapsible drawer opened from the top bar `Menu` button.
+- On `lg` and above, keep the current sticky left sidebar behavior.
+- Mobile top nav uses a horizontally scrollable section row (`Credit Cards`, `Debit Cards`, `Accounts`, `Loans`) while desktop keeps centered nav.
+- Chart tooltips should stay inside viewport bounds on small screens.
+- Summary table may use local horizontal overflow as a safety fallback, but should use compact spacing on small screens before overflow is needed.
 
 Credit-card behavior:
 
