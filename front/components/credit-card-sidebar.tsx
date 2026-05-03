@@ -19,6 +19,7 @@ type CreditCardSidebarProps = {
   section: "credit-cards" | "debit-cards" | "accounts" | "loans";
   activeOperation?: string;
   queryParams?: Record<string, string | undefined>;
+  onNavigate?: () => void;
 };
 
 type BoundaryState = {
@@ -43,7 +44,12 @@ function isDatasetOperation(
   return operation !== "Total Activation Rate";
 }
 
-export function CreditCardSidebar({ section, activeOperation, queryParams = {} }: CreditCardSidebarProps) {
+export function CreditCardSidebar({
+  section,
+  activeOperation,
+  queryParams = {},
+  onNavigate,
+}: CreditCardSidebarProps) {
   const sectionTitle =
     section === "credit-cards"
       ? "Credit Cards"
@@ -242,6 +248,7 @@ export function CreditCardSidebar({ section, activeOperation, queryParams = {} }
                 <Link
                   key={item.slug}
                   href={operationHref(item.slug)}
+                  onClick={onNavigate}
                   className={cn(
                     "block border-l-2 pl-4 text-[15px] transition",
                     isActive

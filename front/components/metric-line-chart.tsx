@@ -86,8 +86,8 @@ export function MetricLineChart({
   const multiMonthLeftPadding = Math.max(56, Math.min(160, estimatedTickLabelWidth + 24));
   const padding =
     months.length === 1
-      ? { top: 20, right: 24, bottom: 24, left: 160 }
-      : { top: 18, right: 150, bottom: 42, left: multiMonthLeftPadding };
+      ? { top: 20, right: 20, bottom: 24, left: 144 }
+      : { top: 18, right: 110, bottom: 42, left: multiMonthLeftPadding };
 
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
@@ -135,9 +135,9 @@ export function MetricLineChart({
       <div className="relative w-full">
         {hoveredPoint ? (
           <div
-            className="pointer-events-none absolute z-10 min-w-44 rounded-2xl border border-border bg-[#07101c]/95 px-4 py-3 shadow-2xl"
+            className="pointer-events-none absolute z-10 w-[min(18rem,80vw)] rounded-2xl border border-border bg-[#07101c]/95 px-3 py-2.5 shadow-2xl sm:min-w-44 sm:px-4 sm:py-3"
             style={{
-              left: `${Math.min(Math.max((hoveredPoint.x / width) * 100, 12), 82)}%`,
+              left: `${Math.min(Math.max((hoveredPoint.x / width) * 100, 8), 86)}%`,
               top: `${Math.min(Math.max(((hoveredPoint.y - 72) / height) * 100, 4), 72)}%`,
               transform: "translate(-50%, -100%)",
             }}
