@@ -77,9 +77,9 @@ export function MetricLineChart({
   const niceStep =
     (stepFraction <= 1 ? 1 : stepFraction <= 2 ? 2 : stepFraction <= 5 ? 5 : 10) * stepMagnitude;
   const chartMaxValue = Math.ceil((maxValue + upperPadding) / niceStep) * niceStep;
-  const chartMinValue = Math.max(0, chartMaxValue - niceStep * 3);
+  const chartMinValue = Math.max(0, Math.floor((minValue - lowerPadding) / niceStep) * niceStep);
   const chartRange = chartMaxValue - chartMinValue || 1;
-  const yTickCount = chartMinValue === 0 ? 4 : 4;
+  const yTickCount = Math.max(4, Math.ceil(chartRange / niceStep) + 1);
   const yTicks = Array.from({ length: yTickCount }, (_, index) => chartMinValue + niceStep * index).reverse();
   const maxTickLabelLength = Math.max(...yTicks.map((tick) => formatTickLabel(tick).length));
   const estimatedTickLabelWidth = maxTickLabelLength * 7;
