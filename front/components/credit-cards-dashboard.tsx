@@ -514,6 +514,21 @@ export function CreditCardsDashboard({
     const totalValue = viewKey === "volume" ? totals.volume : totals.transactions;
     const othersValue = Math.max(totalValue - selectedTotal, 0);
     const othersShare = calculateMarketShares(othersValue, totalValue);
+    const systemStartTotal = calculateSystemTotal(
+      firstMonthRows,
+      viewKey as ChartViewKey | OperationsRateViewKey,
+      activeUfValue,
+      isOperationsRateDashboard
+    );
+    const selectedStartTotal = selectedBanks.reduce((accumulator, institutionCode) => {
+      const startRow = firstRowsByCode.get(institutionCode);
+      if (!startRow) {
+        return accumulator;
+      }
+      const startValue = getOperationMetricValue(startRow as CreditCardMetricRow, viewKey as ChartViewKey, activeUfValue);
+      return accumulator + (startValue ?? 0);
+    }, 0);
+    const othersStartValue = systemStartTotal === null ? null : Math.max(systemStartTotal - selectedStartTotal, 0);
 
     return [
       {
@@ -533,7 +548,7 @@ export function CreditCardsDashboard({
         institutionName: "Others",
         currentValue: othersValue,
         share: othersShare,
-        vsStart: null,
+        vsStart: calculateVsStart(othersStartValue, othersValue, startMonth === latestLoadedMonth),
       },
     ];
   }, [
