@@ -178,11 +178,10 @@ export function CreditCardsDashboard({
     }
 
     const { earliestMonth, latestMonth } = boundaryState;
-    const defaultStart = normalizeMonthValue(addMonths(parseMonthValue(latestMonth), -11).toISOString().slice(0, 7));
-    const boundedDefaultStart = defaultStart < earliestMonth ? earliestMonth : defaultStart;
-    const rawStart = startMonthParam && /^\d{4}-\d{2}$/.test(startMonthParam) ? normalizeMonthValue(startMonthParam) : boundedDefaultStart;
+    const defaultStart = normalizeMonthValue(addMonths(parseMonthValue(latestMonth), -12).toISOString().slice(0, 7));
+    const rawStart = startMonthParam && /^\d{4}-\d{2}$/.test(startMonthParam) ? normalizeMonthValue(startMonthParam) : defaultStart;
     const rawEnd = endMonthParam && /^\d{4}-\d{2}$/.test(endMonthParam) ? normalizeMonthValue(endMonthParam) : latestMonth;
-    const safeStart = rawStart < earliestMonth ? earliestMonth : rawStart > latestMonth ? latestMonth : rawStart;
+    const safeStart = rawStart > latestMonth ? latestMonth : rawStart;
     const safeEnd = rawEnd < earliestMonth ? earliestMonth : rawEnd > latestMonth ? latestMonth : rawEnd;
     const normalizedStart = safeStart > safeEnd ? safeEnd : safeStart;
     const normalizedEnd = safeEnd < normalizedStart ? normalizedStart : safeEnd;
@@ -514,6 +513,21 @@ export function CreditCardsDashboard({
     const totalValue = viewKey === "volume" ? totals.volume : totals.transactions;
     const othersValue = Math.max(totalValue - selectedTotal, 0);
     const othersShare = calculateMarketShares(othersValue, totalValue);
+    const systemStartTotal = calculateSystemTotal(
+      firstMonthRows,
+      viewKey as ChartViewKey | OperationsRateViewKey,
+      activeUfValue,
+      isOperationsRateDashboard
+    );
+    const selectedStartTotal = selectedBanks.reduce((accumulator, institutionCode) => {
+      const startRow = firstRowsByCode.get(institutionCode);
+      if (!startRow) {
+        return accumulator;
+      }
+      const startValue = getOperationMetricValue(startRow as CreditCardMetricRow, viewKey as ChartViewKey, activeUfValue);
+      return accumulator + (startValue ?? 0);
+    }, 0);
+    const othersStartValue = systemStartTotal === null ? null : Math.max(systemStartTotal - selectedStartTotal, 0);
 
     return [
       {
@@ -533,7 +547,7 @@ export function CreditCardsDashboard({
         institutionName: "Others",
         currentValue: othersValue,
         share: othersShare,
-        vsStart: null,
+        vsStart: calculateVsStart(othersStartValue, othersValue, startMonth === latestLoadedMonth),
       },
     ];
   }, [
@@ -572,21 +586,21 @@ export function CreditCardsDashboard({
   }
 
   return (
-    <section className="space-y-10 pt-6 lg:pt-8">
-      <div className="border-b border-border pb-8">
+    <section className="space-y-8 pt-4 sm:space-y-10 sm:pt-6 lg:pt-8">
+      <div className="border-b border-border pb-6 sm:pb-8">
         <div className="max-w-4xl">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand">Chilean banking · monthly series</p>
-          <h1 className="mt-5 text-5xl font-semibold tracking-tight text-white sm:text-6xl">
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:mt-5 sm:text-5xl lg:text-6xl">
             {getEditorialTitle(operationLabelMap[operation])}
           </h1>
-          <p className="mt-5 max-w-none whitespace-nowrap text-base leading-7 text-muted sm:text-lg">
+          <p className="mt-4 max-w-none text-sm leading-6 text-muted sm:mt-5 sm:text-base sm:leading-7 lg:text-lg">
             Monthly credit-card analysis across banks, with UF-adjusted CLP values for volume and ticket metrics, plus the active-card and activation-rate views.
           </p>
         </div>
       </div>
 
       <div className="space-y-8">
-        <div className="rounded-3xl border border-border bg-panel p-6">
+        <div className="rounded-2xl border border-border bg-panel p-4 sm:rounded-3xl sm:p-6">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-h-[4rem]">
               <h2 className="text-xl font-semibold text-white">{activeMetric.label}</h2>
@@ -595,7 +609,7 @@ export function CreditCardsDashboard({
               </p>
             </div>
 
-            <div className="flex flex-nowrap items-center gap-2 pb-1">
+            <div className="flex flex-wrap items-center gap-2 pb-1">
               {(isOperationsRateDashboard ? operationsRateViews : chartViews).map((item, index, items) => (
                 <MetricTabButton
                   key={item.key}
@@ -648,23 +662,23 @@ export function CreditCardsDashboard({
         />
 
         <div className="border-t border-border pt-8">
-          <div className="mb-5 flex items-start justify-between gap-4">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <div>
-              <h3 className="text-3xl font-semibold tracking-tight text-white">
+              <h3 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
       {activeMetric.label} in {latestLoadedMonth ? formatMonthLabel(latestLoadedMonth) : formatMonthLabel(endMonth)}
     </h3>
   </div>
-            <p className="text-sm text-muted">{selectedBanks.length} banks</p>
+            <p className="text-xs text-muted sm:text-sm">{selectedBanks.length} banks</p>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
+            <table className="min-w-[38rem] text-left text-xs sm:min-w-full sm:text-sm">
               <thead>
                 <tr className="border-y border-border text-xs font-medium uppercase tracking-[0.24em] text-muted">
-                  <th className="py-4 pr-6">Bank</th>
-                  <th className="py-4 pr-6 text-right">{activeMetric.label}</th>
-                  {shouldShowShareColumn ? <th className="py-4 pr-6 text-right">Share</th> : null}
-                  <th className="py-4 text-right">v/s {formatMonthLabel(endMonth)}</th>
+                  <th className="py-3 pr-3 sm:py-4 sm:pr-6">Bank</th>
+                  <th className="py-3 pr-3 text-right sm:py-4 sm:pr-6">{activeMetric.label}</th>
+                  {shouldShowShareColumn ? <th className="py-3 pr-3 text-right sm:py-4 sm:pr-6">Share</th> : null}
+                  <th className="py-3 text-right sm:py-4">v/s {formatMonthLabel(endMonth)}</th>
                 </tr>
               </thead>
               <tbody>
@@ -673,18 +687,18 @@ export function CreditCardsDashboard({
                     key={row.institutionCode}
                     className={cn("border-b border-border/70", row.institutionCode === "total" && "bg-brand/10")}
                   >
-                    <td className={cn("py-5 pr-6 text-white", row.institutionCode === "total" ? "font-semibold" : "")}>
+                    <td className={cn("py-4 pr-3 text-white sm:py-5 sm:pr-6", row.institutionCode === "total" ? "font-semibold" : "")}>
                       {row.institutionName}
                     </td>
-                    <td className={cn("py-5 pr-6 text-right text-white", row.institutionCode === "total" ? "font-semibold" : "")}>
+                    <td className={cn("py-4 pr-3 text-right text-white sm:py-5 sm:pr-6", row.institutionCode === "total" ? "font-semibold" : "")}>
                       {row.currentValue === null ? "—" : formatMetricValue(row.currentValue, activeMetric.metricType)}
                     </td>
                     {shouldShowShareColumn ? (
-                      <td className={cn("py-5 pr-6 text-right text-white", row.institutionCode === "total" ? "font-semibold" : "")}>
+                      <td className={cn("py-4 pr-3 text-right text-white sm:py-5 sm:pr-6", row.institutionCode === "total" ? "font-semibold" : "")}>
                         {row.share === null ? "—" : formatPercent(row.share)}
                       </td>
                     ) : null}
-                    <td className={cn("py-5 text-right text-white", row.institutionCode === "total" ? "font-semibold" : "")}>
+                    <td className={cn("py-4 text-right text-white sm:py-5", row.institutionCode === "total" ? "font-semibold" : "")}>
                       {row.vsStart === null ? "—" : formatPercent(row.vsStart)}
                     </td>
                   </tr>
