@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { CreditCardsDashboard } from "@/components/credit-cards-dashboard";
-import { operationFromSlug, operationSlugs } from "@/lib/credit-card-config";
+import { operationFromSlug } from "@/lib/credit-card-config";
 
 type PageProps = {
   params: Promise<{
@@ -9,6 +9,9 @@ type PageProps = {
   }>;
   searchParams: Promise<{
     view?: string;
+    start?: string;
+    end?: string;
+    uf?: string;
   }>;
 };
 
@@ -20,14 +23,16 @@ export default async function CreditCardsPage({ params, searchParams }: PageProp
     notFound();
   }
 
-  const { view } = await searchParams;
+  const { view, start, end, uf } = await searchParams;
 
   return (
-    <AppShell section="credit-cards" activeOperation={operation}>
+    <AppShell section="credit-cards" activeOperation={operation} queryParams={{ view, start, end, uf }}>
       <CreditCardsDashboard
         operation={resolvedOperation}
-        operationSlug={operation as (typeof operationSlugs)[number]}
         initialView={view}
+        startMonthParam={start}
+        endMonthParam={end}
+        ufParam={uf}
       />
     </AppShell>
   );

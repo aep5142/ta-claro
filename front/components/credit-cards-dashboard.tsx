@@ -44,15 +44,16 @@ import { cn } from "@/lib/utils";
 
 type CreditCardsDashboardProps = {
   operation: OperationName;
-  operationSlug: string;
   initialView?: string;
+  startMonthParam?: string;
+  endMonthParam?: string;
+  ufParam?: string;
 };
 
 type BoundaryState = {
   earliestMonth: string;
   latestMonth: string;
   defaultUfValue: number | null;
-  defaultUfDate: string | null;
 };
 
 type MetricType = "money" | "count" | "decimal" | "ratio";
@@ -67,6 +68,9 @@ type SummaryRow = {
 export function CreditCardsDashboard({
   operation,
   initialView,
+  startMonthParam,
+  endMonthParam,
+  ufParam,
 }: CreditCardsDashboardProps) {
   const isOperationsRateDashboard = isOperationsRateOperation(operation);
   const initialMetricKey = isOperationsRateDashboard
@@ -79,12 +83,9 @@ export function CreditCardsDashboard({
 
   const [viewKey, setViewKey] = useState<ChartViewKey | OperationsRateViewKey>(initialMetricKey);
   const [boundaryState, setBoundaryState] = useState<BoundaryState | null>(null);
-  const [startMonth, setStartMonth] = useState("");
-  const [endMonth, setEndMonth] = useState("");
   const [operationRows, setOperationRows] = useState<CreditCardMetricRow[]>([]);
   const [operationsRateRows, setOperationsRateRows] = useState<OperationsRateMetricRow[]>([]);
   const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
-  const [ufInput, setUfInput] = useState("");
   const [isLoadingBounds, setIsLoadingBounds] = useState(true);
   const [isLoadingRows, setIsLoadingRows] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -122,22 +123,12 @@ export function CreditCardsDashboard({
             throw new Error("No activation-rate data is available.");
           }
 
-          const boundedStart = normalizeMonthValue(
-            addMonths(parseMonthValue(latestMonth), -11).toISOString().slice(0, 7)
-          );
-          const safeStart =
-            boundedStart < earliestMonth.slice(0, 7) ? earliestMonth.slice(0, 7) : boundedStart;
-
           if (!isCancelled) {
             setBoundaryState({
               earliestMonth: earliestMonth.slice(0, 7),
               latestMonth: latestMonth.slice(0, 7),
-              defaultUfDate: null,
               defaultUfValue: null,
             });
-            setStartMonth(safeStart);
-            setEndMonth(latestMonth.slice(0, 7));
-            setUfInput("");
             hasSeededSelectionRef.current = false;
           }
 
@@ -155,22 +146,12 @@ export function CreditCardsDashboard({
           throw new Error("No credit-card data is available for this operation.");
         }
 
-        const boundedStart = normalizeMonthValue(
-          addMonths(parseMonthValue(latestMonth), -11).toISOString().slice(0, 7)
-        );
-        const safeStart =
-          boundedStart < earliestMonth.slice(0, 7) ? earliestMonth.slice(0, 7) : boundedStart;
-
         if (!isCancelled) {
           setBoundaryState({
             earliestMonth: earliestMonth.slice(0, 7),
             latestMonth: latestMonth.slice(0, 7),
-            defaultUfDate: latestUf.ufDate,
             defaultUfValue: latestUf.value,
           });
-          setStartMonth(safeStart);
-          setEndMonth(latestMonth.slice(0, 7));
-          setUfInput(formatMoney(Math.round(latestUf.value)));
           hasSeededSelectionRef.current = false;
         }
       } catch (error) {
@@ -190,6 +171,24 @@ export function CreditCardsDashboard({
       isCancelled = true;
     };
   }, [isOperationsRateDashboard, operation]);
+
+  const { startMonth, endMonth } = useMemo(() => {
+    if (!boundaryState) {
+      return { startMonth: "", endMonth: "" };
+    }
+
+    const { earliestMonth, latestMonth } = boundaryState;
+    const defaultStart = normalizeMonthValue(addMonths(parseMonthValue(latestMonth), -11).toISOString().slice(0, 7));
+    const boundedDefaultStart = defaultStart < earliestMonth ? earliestMonth : defaultStart;
+    const rawStart = startMonthParam && /^\d{4}-\d{2}$/.test(startMonthParam) ? normalizeMonthValue(startMonthParam) : boundedDefaultStart;
+    const rawEnd = endMonthParam && /^\d{4}-\d{2}$/.test(endMonthParam) ? normalizeMonthValue(endMonthParam) : latestMonth;
+    const safeStart = rawStart < earliestMonth ? earliestMonth : rawStart > latestMonth ? latestMonth : rawStart;
+    const safeEnd = rawEnd < earliestMonth ? earliestMonth : rawEnd > latestMonth ? latestMonth : rawEnd;
+    const normalizedStart = safeStart > safeEnd ? safeEnd : safeStart;
+    const normalizedEnd = safeEnd < normalizedStart ? normalizedStart : safeEnd;
+
+    return { startMonth: normalizedStart, endMonth: normalizedEnd };
+  }, [boundaryState, endMonthParam, startMonthParam]);
 
   useEffect(() => {
     if (!startMonth || !endMonth) {
@@ -248,9 +247,9 @@ export function CreditCardsDashboard({
   }, [endMonth, isOperationsRateDashboard, operation, startMonth]);
 
   const activeUfValue = useMemo(() => {
-    const parsed = Number(ufInput.replace(/\./g, "").replace(",", "."));
+    const parsed = Number(ufParam ?? "");
     return Number.isFinite(parsed) && parsed > 0 ? parsed : boundaryState?.defaultUfValue ?? 0;
-  }, [boundaryState?.defaultUfValue, ufInput]);
+  }, [boundaryState?.defaultUfValue, ufParam]);
 
   const months = useMemo(() => buildMonthOptions(startMonth, endMonth), [startMonth, endMonth]);
 
@@ -556,14 +555,6 @@ export function CreditCardsDashboard({
     hasSeededSelectionRef.current = true;
   }
 
-  const availableMonthOptions = useMemo(() => {
-    if (!boundaryState) {
-      return [];
-    }
-
-    return buildMonthOptions(boundaryState.earliestMonth, boundaryState.latestMonth);
-  }, [boundaryState]);
-
   if (isLoadingBounds) {
     return <LoadingState label="Loading dashboard configuration" />;
   }
@@ -595,67 +586,6 @@ export function CreditCardsDashboard({
       </div>
 
       <div className="space-y-8">
-        <div className="rounded-3xl border border-border bg-panel p-6">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-            <div className={cn("grid gap-5", isOperationsRateDashboard ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
-              <ControlCard label="Start (MM/YY)">
-                <select
-                  value={startMonth}
-                  onChange={(event) => setStartMonth(event.target.value)}
-                  className="w-full border-0 border-b border-border bg-transparent px-0 py-2 text-sm text-white outline-none transition focus:border-brand/60"
-                >
-                  {availableMonthOptions.map((month) => (
-                    <option key={month} value={month} disabled={month > endMonth}>
-                      {formatMonthLabel(month)}
-                    </option>
-                  ))}
-                </select>
-              </ControlCard>
-              <ControlCard label="End (MM/YY)">
-                <select
-                  value={endMonth}
-                  onChange={(event) => setEndMonth(event.target.value)}
-                  className="w-full border-0 border-b border-border bg-transparent px-0 py-2 text-sm text-white outline-none transition focus:border-brand/60"
-                >
-                  {availableMonthOptions.map((month) => (
-                    <option key={month} value={month} disabled={month < startMonth}>
-                      {formatMonthLabel(month)}
-                    </option>
-                  ))}
-                </select>
-              </ControlCard>
-              {!isOperationsRateDashboard ? (
-                <ControlCard
-                  label={
-                    <span className="inline-flex items-center gap-2">
-                      UF value
-                      <span className="group relative inline-flex h-4 w-4 items-center justify-center rounded-full border border-current/30 text-[10px] font-semibold leading-none text-current cursor-help">
-                        i
-                        <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-56 -translate-x-1/2 rounded-2xl border border-border bg-[#07101c] p-3 text-left text-xs leading-5 text-muted shadow-2xl group-hover:block">
-                          by default uses today&apos;s UF
-                        </span>
-                      </span>
-                    </span>
-                  }
-                >
-                  <div className="relative">
-                    <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center text-sm text-muted">$</span>
-                    <input
-                      value={ufInput}
-                      onChange={(event) => {
-                        const digits = event.target.value.replace(/\D/g, "");
-                        setUfInput(digits ? formatMoney(Number(digits)) : "");
-                      }}
-                      inputMode="numeric"
-                      className="w-full border-0 border-b border-border bg-transparent py-2 pl-5 pr-0 text-sm text-white outline-none transition focus:border-brand/60"
-                    />
-                  </div>
-                </ControlCard>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
         <div className="rounded-3xl border border-border bg-panel p-6">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-h-[4rem]">
@@ -837,15 +767,6 @@ function formatMetricValue(value: number, metricType: MetricType): string {
     return formatDecimal(value);
   }
   return formatMoney(value);
-}
-
-function ControlCard({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-muted">{label}</p>
-      {children}
-    </div>
-  );
 }
 
 function MetricTabButton({
