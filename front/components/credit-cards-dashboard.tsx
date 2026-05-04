@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BankSelector } from "@/components/bank-selector";
 import { EmptyState, ErrorState, LoadingState } from "@/components/dashboard-states";
 import { MetricLineChart } from "@/components/metric-line-chart";
-import { getBankDisplayName } from "@/lib/bank-presentation";
+import { getBankDisplayName, shouldIncludeInstitution } from "@/lib/bank-presentation";
 import {
   type CreditCardMetricRow,
   fetchCreditCardMetrics,
@@ -256,16 +256,38 @@ export function CreditCardsDashboard({
     ? operationsRateViews.find((item) => item.key === viewKey) ?? operationsRateViews[0]
     : chartViews.find((item) => item.key === viewKey) ?? chartViews[0];
 
+  const filteredOperationRows = useMemo(
+    () =>
+      operationRows.filter((row) =>
+        shouldIncludeInstitution(
+          row.institution_name,
+          row.institution_code,
+          row.source_dataset_code
+        )
+      ),
+    [operationRows]
+  );
+  const filteredOperationsRateRows = useMemo(
+    () =>
+      operationsRateRows.filter((row) =>
+        shouldIncludeInstitution(row.institution_name, row.institution_code)
+      ),
+    [operationsRateRows]
+  );
+
   const loadedMonthKeys = useMemo(
     () =>
       Array.from(
         new Set(
-          (isOperationsRateDashboard ? operationsRateRows : operationRows).map((row) =>
+          (isOperationsRateDashboard
+            ? filteredOperationsRateRows
+            : filteredOperationRows
+          ).map((row) =>
             row.period_month.slice(0, 7)
           )
         )
       ).sort(),
-    [isOperationsRateDashboard, operationRows, operationsRateRows]
+    [filteredOperationRows, filteredOperationsRateRows, isOperationsRateDashboard]
   );
   const latestLoadedMonth = loadedMonthKeys.at(-1) ?? null;
 
@@ -274,7 +296,7 @@ export function CreditCardsDashboard({
     const bankNames = new Map<string, string>();
 
     if (isOperationsRateDashboard) {
-      operationsRateRows.forEach((row) => {
+      filteredOperationsRateRows.forEach((row) => {
         const monthKey = row.period_month.slice(0, 7);
         const metricValue = getOperationsRateMetricValue(
           row,
@@ -289,7 +311,7 @@ export function CreditCardsDashboard({
         bankNames.set(row.institution_code, row.institution_name);
       });
     } else {
-      operationRows.forEach((row) => {
+      filteredOperationRows.forEach((row) => {
         const monthKey = row.period_month.slice(0, 7);
         const metricValue = getOperationMetricValue(
           row,
@@ -313,7 +335,14 @@ export function CreditCardsDashboard({
         series,
       }))
       .sort((left, right) => left.institutionName.localeCompare(right.institutionName));
-  }, [activeUfValue, isOperationsRateDashboard, months, operationRows, operationsRateRows, viewKey]);
+  }, [
+    activeUfValue,
+    filteredOperationRows,
+    filteredOperationsRateRows,
+    isOperationsRateDashboard,
+    months,
+    viewKey,
+  ]);
 
   const defaultSelectedBanks = useMemo(
     () => computeDefaultSelectedBanks(bankSeries, latestLoadedMonth),
@@ -360,18 +389,24 @@ export function CreditCardsDashboard({
 
   const latestMonthRows = useMemo(
     () =>
-      (isOperationsRateDashboard ? operationsRateRows : operationRows).filter(
+      (isOperationsRateDashboard
+        ? filteredOperationsRateRows
+        : filteredOperationRows
+      ).filter(
         (row) => latestLoadedMonth !== null && row.period_month.slice(0, 7) === latestLoadedMonth
       ),
-    [isOperationsRateDashboard, latestLoadedMonth, operationRows, operationsRateRows]
+    [filteredOperationRows, filteredOperationsRateRows, isOperationsRateDashboard, latestLoadedMonth]
   );
 
   const firstMonthRows = useMemo(
     () =>
-      (isOperationsRateDashboard ? operationsRateRows : operationRows).filter(
+      (isOperationsRateDashboard
+        ? filteredOperationsRateRows
+        : filteredOperationRows
+      ).filter(
         (row) => row.period_month.slice(0, 7) === startMonth
       ),
-    [isOperationsRateDashboard, operationRows, operationsRateRows, startMonth]
+    [filteredOperationRows, filteredOperationsRateRows, isOperationsRateDashboard, startMonth]
   );
 
   const summaryRows = useMemo(() => {
@@ -573,7 +608,11 @@ export function CreditCardsDashboard({
     return <LoadingState label="Loading dashboard configuration" />;
   }
 
-  if (errorMessage && !operationRows.length && !operationsRateRows.length) {
+  if (
+    errorMessage &&
+    !filteredOperationRows.length &&
+    !filteredOperationsRateRows.length
+  ) {
     return <ErrorState title="Unable to load the dashboard" description={errorMessage} />;
   }
 
@@ -709,7 +748,8 @@ export function CreditCardsDashboard({
         </div>
       </div>
 
-      {errorMessage && (operationRows.length || operationsRateRows.length) ? (
+      {errorMessage &&
+      (filteredOperationRows.length || filteredOperationsRateRows.length) ? (
         <ErrorState title="Partial data issue" description={errorMessage} compact />
       ) : null}
     </section>

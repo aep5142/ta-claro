@@ -21,10 +21,46 @@ export const bankDisplayNameMap: Record<string, string> = {
   Coopeuch: "Coopeuch",
   "Banco Security": "Banco Security",
   Corpbanca: "Corpbanca",
+  "Tenpo Payments S.A. - Tarjeta Mastercard": "Tenpo",
 };
 
 export function getBankDisplayName(name: string): string {
   return bankDisplayNameMap[name] ?? name;
+}
+
+const TENPO_RAW_NAME = "Tenpo Payments S.A. - Tarjeta Mastercard";
+
+export function isTenpoInstitution(name: string): boolean {
+  return name === TENPO_RAW_NAME;
+}
+
+export function isLikelyNonBankingInstitution(
+  institutionName: string,
+  institutionCode: string,
+  sourceDatasetCode?: string
+): boolean {
+  if (sourceDatasetCode?.startsWith("bank_credit_card_ops_non_banking_")) {
+    return true;
+  }
+
+  if (institutionCode === "MRC") {
+    return true;
+  }
+
+  return institutionName.includes(" - Tarjeta ");
+}
+
+export function shouldIncludeInstitution(
+  institutionName: string,
+  institutionCode: string,
+  sourceDatasetCode?: string
+): boolean {
+  const isNonBanking = isLikelyNonBankingInstitution(
+    institutionName,
+    institutionCode,
+    sourceDatasetCode
+  );
+  return !isNonBanking || isTenpoInstitution(institutionName);
 }
 
 export function getBankColor(bankKey: string): string {
