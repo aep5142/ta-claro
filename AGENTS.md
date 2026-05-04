@@ -63,6 +63,7 @@ Primary worker modules:
   - `from=reload`
 - Card-base endpoints use the same CMF builder and worker cycle.
 - `institution_code` is derived from `source_codigo` by splitting on `_`, locating `AGIFI`, and taking the next token.
+- For non-banking card tags that use `AGIFI_MRC`, do not use plain `MRC` as the institution key; derive a per-series key from the trailing `source_codigo` tokens (for example `TENPO_MCRD`) to avoid issuer collisions.
 
 # Card Worker Flow
 
@@ -72,6 +73,7 @@ Primary worker modules:
   - one `nominal_volume` row per operation type
   - 6 rows total for the 3 active operations
 - Also read the 4 card-count endpoint rows used to derive active cards and cards with operations.
+- Also read the 2 non-banking card-count endpoint rows used to extend active cards and cards with operations totals.
 - Group datasets by `operation_type`.
 - For each operation type:
   - fetch both endpoint tags
@@ -162,6 +164,7 @@ Active migration set:
 - `db/010_operations_rate_add_supplementary_fields.sql`
 - `db/011_rename_operations_rate_to_total_activation_rate.sql`
 - `db/012_operations_rate_view_add_cards_with_operations_fields.sql`
+- `db/013_non_banking_credit_card_endpoints.sql`
 
 # Repo Structure
 
@@ -229,7 +232,7 @@ Credit-card behavior:
 - Main visualization is a multi-bank line chart over time.
 - If the selected range is a single month, switch to a horizontal bar chart sorted descending.
 - Bar labels stay outside bars with enough right-side space to avoid clipping.
-- Default range is the last 12 months ending at the latest available month for the selected operation.
+- Default range is latest available month as `End` and the same calendar month in the previous year as `Start` (for example, `2026-02` to `2025-02`), clamped by the operation's earliest available month.
 - Time range is month-based and displayed as `MM/YY`.
 - Users can select/deselect banks.
 - Bank labels come from `others/bank-mapping.txt`.
@@ -237,6 +240,7 @@ Credit-card behavior:
 - Point markers shrink for long date ranges.
 - Tooltips support hover/focus inspection.
 - Tooltip share line should show `XX% of the system` using system-wide month totals, not selected-bank totals; omit that line for `Transactions`.
+- For non-banking issuers, frontend should include only `Tenpo Payments S.A. - Tarjeta Mastercard`, displayed as `Tenpo`; other non-banking issuer-brand rows are filtered out in UI.
 
 Formatting and metric rules:
 
