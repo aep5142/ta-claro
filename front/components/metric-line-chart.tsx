@@ -359,13 +359,6 @@ export function MetricLineChart({
         ))}
       </div>
 
-      {metricType === "ratio" ? (
-        <p className="text-xs text-muted">Operations rate is shown as a percentage of active cards.</p>
-      ) : metricType === "decimal" ? (
-        <p className="text-xs text-muted">Ratio values are shown with two decimal places.</p>
-      ) : metricType === "count" ? (
-        <p className="text-xs text-muted">Transaction counts are shown as rounded integers.</p>
-      ) : null}
     </div>
   );
 }
