@@ -62,6 +62,8 @@ def test_build_cmf_cuadros_url_for_new_operation_endpoint():
     [
         ("SBIF_TCRED_BANC_AVEF_AGIFI_BICE_NUM", "BICE"),
         ("SBIF_TCRED_BANC_CSERV_AGIFI_BICE_$", "BICE"),
+        ("SBIF_TCRED_NBANC_OPER_AGIFI_MRC_$_TENPO_MCRD", "TENPO_MCRD"),
+        ("SBIF_TCRED_NBANC_OPER_AGIFI_MRC_TCRDSA_VISA_NUM", "TCRDSA_VISA"),
     ],
 )
 def test_derive_institution_code_from_new_operation_source_codes(

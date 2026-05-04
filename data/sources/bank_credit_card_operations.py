@@ -66,6 +66,18 @@ def derive_institution_code(source_codigo: str) -> str:
     except (ValueError, IndexError) as exc:
         raise ValueError(f"Cannot derive institution_code from {source_codigo}") from exc
 
+    # Non-banking card tags use AGIFI_MRC and then append issuer/brand tokens.
+    # Using plain MRC collapses many institutions into one key, so we derive a
+    # stable per-series code from the trailing identifier tokens.
+    if institution_code == "MRC":
+        trailing_parts = [
+            token
+            for token in parts[agifi_index + 2 :]
+            if token and token not in {"$", "NUM"}
+        ]
+        if trailing_parts:
+            institution_code = "_".join(trailing_parts)
+
     if not institution_code:
         raise ValueError(f"Cannot derive institution_code from {source_codigo}")
 
