@@ -4,13 +4,16 @@ from decimal import Decimal
 import pytest
 
 from data.models.bank_credit_card_operations import (
+    BANK_CREDIT_CARD_ACTIVE_CARDS_NON_BANKING_DATASET,
     BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
     BANK_CREDIT_CARD_ACTIVE_CARDS_SUPPLEMENTARY_DATASET,
+    BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_NON_BANKING_DATASET,
     BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET,
     BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET,
     BANK_CREDIT_CARD_COUNTS_DATASET,
     BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET,
     BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
+    BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_DATASET,
     BankCreditCardCountRawObservation,
     BankCreditCardOpsRawObservation,
 )
@@ -112,6 +115,29 @@ def test_to_curated_bank_credit_card_ops_adds_operations_per_active_card():
     assert curated[0].operations_per_active_card == Decimal("5")
 
 
+def test_to_curated_bank_credit_card_ops_maps_non_banking_purchases_to_compras():
+    raw_observation = BankCreditCardOpsRawObservation(
+        operation_type="Compras No Bancarias",
+        dataset_code=BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_DATASET,
+        source_series_id="301",
+        source_codigo="SBIF_TCRED_NBANC_OPER_AGIFI_MRC_BICE_$",
+        source_nombre="Banco BICE",
+        institution_code="BICE",
+        institution_name="Banco BICE",
+        period_month=date(2026, 4, 1),
+        transaction_count=Decimal("2500"),
+        nominal_volume_millions_clp=Decimal("120507.338"),
+        source_payload={},
+    )
+
+    curated = to_curated_bank_credit_card_ops(
+        [raw_observation],
+        uf_lookup=lambda _uf_date: Decimal("40000"),
+    )
+
+    assert curated[0].operation_type == "Compras"
+
+
 def test_to_curated_bank_credit_card_counts_aggregates_primary_and_supplementary():
     curated = to_curated_bank_credit_card_counts(
         [
@@ -167,3 +193,58 @@ def test_to_curated_bank_credit_card_counts_aggregates_primary_and_supplementary
     assert curated[0].total_active_cards == Decimal("110")
     assert curated[0].total_cards_with_operations == Decimal("85")
     assert curated[0].operations_rate == Decimal("0.7727272727272727272727272727")
+
+
+def test_to_curated_bank_credit_card_counts_includes_non_banking_totals():
+    curated = to_curated_bank_credit_card_counts(
+        [
+            BankCreditCardCountRawObservation(
+                dataset_code=BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
+                source_series_id="101",
+                source_codigo="SBIF_TCRED_BANC_VIGTIT_AGIFI_BICE_NUM",
+                source_nombre="Banco BICE",
+                institution_code="BICE",
+                institution_name="Banco BICE",
+                period_month=date(2026, 4, 1),
+                card_count=Decimal("100"),
+                source_payload={},
+            ),
+            BankCreditCardCountRawObservation(
+                dataset_code=BANK_CREDIT_CARD_ACTIVE_CARDS_NON_BANKING_DATASET,
+                source_series_id="102",
+                source_codigo="SBIF_TCRED_NBANC_VIG_AGIFI_MRC_BICE_NUM",
+                source_nombre="Banco BICE",
+                institution_code="BICE",
+                institution_name="Banco BICE",
+                period_month=date(2026, 4, 1),
+                card_count=Decimal("25"),
+                source_payload={},
+            ),
+            BankCreditCardCountRawObservation(
+                dataset_code=BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET,
+                source_series_id="103",
+                source_codigo="SBIF_TCRED_BANC_COPETIT_AGIFI_BICE_NUM",
+                source_nombre="Banco BICE",
+                institution_code="BICE",
+                institution_name="Banco BICE",
+                period_month=date(2026, 4, 1),
+                card_count=Decimal("80"),
+                source_payload={},
+            ),
+            BankCreditCardCountRawObservation(
+                dataset_code=BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_NON_BANKING_DATASET,
+                source_series_id="104",
+                source_codigo="SBIF_TCRED_NBANC_COPE_AGIFI_MRC_BICE_NUM",
+                source_nombre="Banco BICE",
+                institution_code="BICE",
+                institution_name="Banco BICE",
+                period_month=date(2026, 4, 1),
+                card_count=Decimal("20"),
+                source_payload={},
+            ),
+        ]
+    )
+
+    assert len(curated) == 1
+    assert curated[0].total_active_cards == Decimal("125")
+    assert curated[0].total_cards_with_operations == Decimal("100")

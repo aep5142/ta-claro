@@ -5,8 +5,10 @@ from decimal import Decimal
 import pytest
 
 from data.models.bank_credit_card_operations import (
+    BANK_CREDIT_CARD_ACTIVE_CARDS_NON_BANKING_DATASET,
     BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
     BANK_CREDIT_CARD_ACTIVE_CARDS_SUPPLEMENTARY_DATASET,
+    BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_NON_BANKING_DATASET,
     BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET,
     BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET,
     BANK_CREDIT_CARD_COUNTS_DATASET,
@@ -16,8 +18,13 @@ from data.models.bank_credit_card_operations import (
     BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
     BANK_CREDIT_CARD_OPS_COMPRAS_NOMINAL_VOLUME_DATASET,
     BANK_CREDIT_CARD_OPS_COMPRAS_TRANSACTION_COUNT_DATASET,
+    BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_DATASET,
+    BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_NOMINAL_VOLUME_DATASET,
+    BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_TRANSACTION_COUNT_DATASET,
+    CMF_MEASURE_KIND_ACTIVE_CARDS_NON_BANKING,
     CMF_MEASURE_KIND_ACTIVE_CARDS_PRIMARY,
     CMF_MEASURE_KIND_ACTIVE_CARDS_SUPPLEMENTARY,
+    CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_NON_BANKING,
     CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_PRIMARY,
     CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_SUPPLEMENTARY,
     CMF_MEASURE_KIND_NOMINAL_VOLUME,
@@ -203,10 +210,14 @@ def _counts_config() -> BankCreditCardCountsConfig:
         active_cards_supplementary_dataset_code=BANK_CREDIT_CARD_ACTIVE_CARDS_SUPPLEMENTARY_DATASET,
         cards_with_operations_primary_dataset_code=BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET,
         cards_with_operations_supplementary_dataset_code=BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET,
+        active_cards_non_banking_dataset_code=None,
+        cards_with_operations_non_banking_dataset_code=None,
         active_cards_primary_source_tag="active-primary",
         active_cards_supplementary_source_tag="active-supplementary",
         cards_with_operations_primary_source_tag="ops-primary",
         cards_with_operations_supplementary_source_tag="ops-supplementary",
+        active_cards_non_banking_source_tag=None,
+        cards_with_operations_non_banking_source_tag=None,
         source_endpoint_base="https://cmf.example",
         refresh_frequency="monthly",
         start_date=date(2009, 4, 1),
@@ -267,6 +278,8 @@ def _counts_batch(period_month: date) -> BankCreditCardCountsObservationBatch:
         latest_active_cards_supplementary_source_month=period_month,
         latest_cards_with_operations_primary_source_month=period_month,
         latest_cards_with_operations_supplementary_source_month=period_month,
+        latest_active_cards_non_banking_source_month=None,
+        latest_cards_with_operations_non_banking_source_month=None,
     )
 
 
@@ -321,6 +334,30 @@ def test_load_active_operation_configs_reads_registry_rows():
                 "start_date": "2009-04-01",
                 "is_active": True,
             },
+            {
+                "operation_type": "Compras No Bancarias",
+                "dataset_code": BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_TRANSACTION_COUNT_DATASET,
+                "measure_kind": CMF_MEASURE_KIND_TRANSACTION_COUNT,
+                "source_tag": "count-tag-3",
+                "source_nombre": "Compras No Bancarias",
+                "source_description": "Compras no bancarias desc",
+                "source_endpoint_base": "https://cmf.example",
+                "refresh_frequency": "monthly",
+                "start_date": "2009-04-01",
+                "is_active": True,
+            },
+            {
+                "operation_type": "Compras No Bancarias",
+                "dataset_code": BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_NOMINAL_VOLUME_DATASET,
+                "measure_kind": CMF_MEASURE_KIND_NOMINAL_VOLUME,
+                "source_tag": "volume-tag-3",
+                "source_nombre": "Compras No Bancarias",
+                "source_description": "Compras no bancarias desc",
+                "source_endpoint_base": "https://cmf.example",
+                "refresh_frequency": "monthly",
+                "start_date": "2009-04-01",
+                "is_active": True,
+            },
         ]
     )
 
@@ -329,6 +366,7 @@ def test_load_active_operation_configs_reads_registry_rows():
     assert [config.dataset_code for config in configs] == [
         BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET,
         BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
+        BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_DATASET,
     ]
 
 
@@ -375,6 +413,26 @@ def test_load_active_card_counts_config_reads_registry_rows():
                 "start_date": "2009-04-01",
                 "is_active": True,
             },
+            {
+                "dataset_code": BANK_CREDIT_CARD_ACTIVE_CARDS_NON_BANKING_DATASET,
+                "operation_type": "Total Activation Rate",
+                "measure_kind": CMF_MEASURE_KIND_ACTIVE_CARDS_NON_BANKING,
+                "source_tag": "active-non-banking",
+                "source_endpoint_base": "https://cmf.example",
+                "refresh_frequency": "monthly",
+                "start_date": "2009-04-01",
+                "is_active": True,
+            },
+            {
+                "dataset_code": BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_NON_BANKING_DATASET,
+                "operation_type": "Total Activation Rate",
+                "measure_kind": CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_NON_BANKING,
+                "source_tag": "ops-non-banking",
+                "source_endpoint_base": "https://cmf.example",
+                "refresh_frequency": "monthly",
+                "start_date": "2009-04-01",
+                "is_active": True,
+            },
         ]
     )
 
@@ -383,6 +441,7 @@ def test_load_active_card_counts_config_reads_registry_rows():
     assert config is not None
     assert config.dataset_code == BANK_CREDIT_CARD_COUNTS_DATASET
     assert config.active_cards_primary_dataset_code == BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET
+    assert config.active_cards_non_banking_dataset_code == BANK_CREDIT_CARD_ACTIVE_CARDS_NON_BANKING_DATASET
 
 
 def test_sync_operation_once_noops_when_source_month_is_unchanged(monkeypatch):

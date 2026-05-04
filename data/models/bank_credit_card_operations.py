@@ -20,6 +20,10 @@ CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_PRIMARY = "cards_with_operations_primary"
 CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_SUPPLEMENTARY = (
     "cards_with_operations_supplementary"
 )
+CMF_MEASURE_KIND_ACTIVE_CARDS_NON_BANKING = "active_cards_non_banking"
+CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_NON_BANKING = (
+    "cards_with_operations_non_banking"
+)
 
 BANK_CREDIT_CARD_OPS_COMPRAS_DATASET = "bank_credit_card_ops_compras"
 BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET = "bank_credit_card_ops_avance_en_efectivo"
@@ -42,6 +46,13 @@ BANK_CREDIT_CARD_OPS_CARGOS_POR_SERVICIO_TRANSACTION_COUNT_DATASET = (
 BANK_CREDIT_CARD_OPS_CARGOS_POR_SERVICIO_NOMINAL_VOLUME_DATASET = (
     "bank_credit_card_ops_cargos_por_servicio_nominal_volume"
 )
+BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_DATASET = "bank_credit_card_ops_non_banking_compras"
+BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_TRANSACTION_COUNT_DATASET = (
+    "bank_credit_card_ops_non_banking_compras_transaction_count"
+)
+BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_NOMINAL_VOLUME_DATASET = (
+    "bank_credit_card_ops_non_banking_compras_nominal_volume"
+)
 BANK_CREDIT_CARD_COUNTS_DATASET = "bank_credit_card_counts"
 BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET = (
     "bank_credit_card_active_cards_primary"
@@ -55,11 +66,18 @@ BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET = (
 BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET = (
     "bank_credit_card_cards_with_operations_supplementary"
 )
+BANK_CREDIT_CARD_ACTIVE_CARDS_NON_BANKING_DATASET = (
+    "bank_credit_card_active_cards_non_banking"
+)
+BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_NON_BANKING_DATASET = (
+    "bank_credit_card_cards_with_operations_non_banking"
+)
 
 BANK_CREDIT_CARD_OPERATION_COMPRAS = "Compras"
 BANK_CREDIT_CARD_OPERATION_AVANCE_EN_EFECTIVO = "Avance en Efectivo"
 BANK_CREDIT_CARD_OPERATION_CARGOS_POR_SERVICIO = "Cargos por Servicio"
 BANK_CREDIT_CARD_OPERATION_RATE = "Total Activation Rate"
+BANK_CREDIT_CARD_OPERATION_COMPRAS_NON_BANKING = "Compras No Bancarias"
 
 BANK_CREDIT_CARD_OPERATION_TYPES = (
     BANK_CREDIT_CARD_OPERATION_COMPRAS,
@@ -138,10 +156,14 @@ class BankCreditCardCountsConfig:
     active_cards_supplementary_dataset_code: str
     cards_with_operations_primary_dataset_code: str
     cards_with_operations_supplementary_dataset_code: str
+    active_cards_non_banking_dataset_code: str | None
+    cards_with_operations_non_banking_dataset_code: str | None
     active_cards_primary_source_tag: str
     active_cards_supplementary_source_tag: str
     cards_with_operations_primary_source_tag: str
     cards_with_operations_supplementary_source_tag: str
+    active_cards_non_banking_source_tag: str | None
+    cards_with_operations_non_banking_source_tag: str | None
     source_endpoint_base: str
     refresh_frequency: str
     start_date: date

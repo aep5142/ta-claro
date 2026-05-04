@@ -26,18 +26,24 @@ from data.loaders.bank_credit_card_ops_sync_state_loader import (
 )
 from data.models.bank_credit_card_operations import (
     BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
+    BANK_CREDIT_CARD_ACTIVE_CARDS_NON_BANKING_DATASET,
     BANK_CREDIT_CARD_ACTIVE_CARDS_SUPPLEMENTARY_DATASET,
     BANK_CREDIT_CARD_OPERATION_AVANCE_EN_EFECTIVO,
     BANK_CREDIT_CARD_OPERATION_CARGOS_POR_SERVICIO,
+    BANK_CREDIT_CARD_OPERATION_COMPRAS_NON_BANKING,
     BANK_CREDIT_CARD_OPERATION_COMPRAS,
     BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET,
+    BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_NON_BANKING_DATASET,
     BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET,
     BANK_CREDIT_CARD_COUNTS_DATASET,
     BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET,
     BANK_CREDIT_CARD_OPS_CARGOS_POR_SERVICIO_DATASET,
     BANK_CREDIT_CARD_OPS_COMPRAS_DATASET,
+    BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_DATASET,
+    CMF_MEASURE_KIND_ACTIVE_CARDS_NON_BANKING,
     CMF_MEASURE_KIND_ACTIVE_CARDS_PRIMARY,
     CMF_MEASURE_KIND_ACTIVE_CARDS_SUPPLEMENTARY,
+    CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_NON_BANKING,
     CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_PRIMARY,
     CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_SUPPLEMENTARY,
     CMF_MEASURE_KIND_NOMINAL_VOLUME,
@@ -82,6 +88,8 @@ def load_config() -> BankCreditCardOpsWorkerConfig:
 def operation_dataset_code(operation_type: str) -> str:
     if operation_type == BANK_CREDIT_CARD_OPERATION_COMPRAS:
         return BANK_CREDIT_CARD_OPS_COMPRAS_DATASET
+    if operation_type == BANK_CREDIT_CARD_OPERATION_COMPRAS_NON_BANKING:
+        return BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_DATASET
     if operation_type == BANK_CREDIT_CARD_OPERATION_AVANCE_EN_EFECTIVO:
         return BANK_CREDIT_CARD_OPS_AVANCE_EN_EFECTIVO_DATASET
     if operation_type == BANK_CREDIT_CARD_OPERATION_CARGOS_POR_SERVICIO:
@@ -154,6 +162,8 @@ def load_active_card_counts_config(sb) -> BankCreditCardCountsConfig | None:
             CMF_MEASURE_KIND_ACTIVE_CARDS_SUPPLEMENTARY,
             CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_PRIMARY,
             CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_SUPPLEMENTARY,
+            CMF_MEASURE_KIND_ACTIVE_CARDS_NON_BANKING,
+            CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_NON_BANKING,
         }:
             continue
 
@@ -191,16 +201,38 @@ def load_active_card_counts_config(sb) -> BankCreditCardCountsConfig | None:
     operating_supplementary = endpoints_by_measure_kind[
         CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_SUPPLEMENTARY
     ]
+    non_banking_active = endpoints_by_measure_kind.get(
+        CMF_MEASURE_KIND_ACTIVE_CARDS_NON_BANKING
+    )
+    non_banking_operating = endpoints_by_measure_kind.get(
+        CMF_MEASURE_KIND_CARDS_WITH_OPERATIONS_NON_BANKING
+    )
     return BankCreditCardCountsConfig(
         dataset_code=BANK_CREDIT_CARD_COUNTS_DATASET,
         active_cards_primary_dataset_code=primary.dataset_code,
         active_cards_supplementary_dataset_code=supplementary.dataset_code,
         cards_with_operations_primary_dataset_code=operating_primary.dataset_code,
         cards_with_operations_supplementary_dataset_code=operating_supplementary.dataset_code,
+        active_cards_non_banking_dataset_code=(
+            non_banking_active.dataset_code if non_banking_active is not None else None
+        ),
+        cards_with_operations_non_banking_dataset_code=(
+            non_banking_operating.dataset_code
+            if non_banking_operating is not None
+            else None
+        ),
         active_cards_primary_source_tag=primary.source_tag,
         active_cards_supplementary_source_tag=supplementary.source_tag,
         cards_with_operations_primary_source_tag=operating_primary.source_tag,
         cards_with_operations_supplementary_source_tag=operating_supplementary.source_tag,
+        active_cards_non_banking_source_tag=(
+            non_banking_active.source_tag if non_banking_active is not None else None
+        ),
+        cards_with_operations_non_banking_source_tag=(
+            non_banking_operating.source_tag
+            if non_banking_operating is not None
+            else None
+        ),
         source_endpoint_base=primary.source_endpoint_base,
         refresh_frequency=primary.refresh_frequency,
         start_date=min(
@@ -351,6 +383,10 @@ async def sync_card_counts_once(
         config.cards_with_operations_primary_dataset_code,
         config.cards_with_operations_supplementary_dataset_code,
     ]
+    if config.active_cards_non_banking_dataset_code:
+        dataset_codes.append(config.active_cards_non_banking_dataset_code)
+    if config.cards_with_operations_non_banking_dataset_code:
+        dataset_codes.append(config.cards_with_operations_non_banking_dataset_code)
     for dataset_code in dataset_codes:
         record_sync_attempt(sb, dataset_code)
 
@@ -370,6 +406,14 @@ async def sync_card_counts_once(
             config.cards_with_operations_primary_dataset_code: batch.latest_cards_with_operations_primary_source_month,
             config.cards_with_operations_supplementary_dataset_code: batch.latest_cards_with_operations_supplementary_source_month,
         }
+        if config.active_cards_non_banking_dataset_code:
+            latest_batch_months[config.active_cards_non_banking_dataset_code] = (
+                batch.latest_active_cards_non_banking_source_month
+            )
+        if config.cards_with_operations_non_banking_dataset_code:
+            latest_batch_months[config.cards_with_operations_non_banking_dataset_code] = (
+                batch.latest_cards_with_operations_non_banking_source_month
+            )
         all_unchanged = True
         for dataset_code, latest_source_month in latest_batch_months.items():
             current_state_month = latest_state_months[dataset_code]
@@ -408,6 +452,14 @@ async def sync_card_counts_once(
         config.cards_with_operations_primary_dataset_code: batch.latest_cards_with_operations_primary_source_month,
         config.cards_with_operations_supplementary_dataset_code: batch.latest_cards_with_operations_supplementary_source_month,
     }
+    if config.active_cards_non_banking_dataset_code:
+        latest_source_months[config.active_cards_non_banking_dataset_code] = (
+            batch.latest_active_cards_non_banking_source_month
+        )
+    if config.cards_with_operations_non_banking_dataset_code:
+        latest_source_months[config.cards_with_operations_non_banking_dataset_code] = (
+            batch.latest_cards_with_operations_non_banking_source_month
+        )
     for dataset_code, latest_source_month in latest_source_months.items():
         if latest_source_month is None:
             continue

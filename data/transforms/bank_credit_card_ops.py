@@ -3,11 +3,16 @@ from decimal import Decimal
 from typing import Callable
 
 from data.models.bank_credit_card_operations import (
+    BANK_CREDIT_CARD_ACTIVE_CARDS_NON_BANKING_DATASET,
     BANK_CREDIT_CARD_ACTIVE_CARDS_PRIMARY_DATASET,
     BANK_CREDIT_CARD_ACTIVE_CARDS_SUPPLEMENTARY_DATASET,
+    BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_NON_BANKING_DATASET,
     BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_PRIMARY_DATASET,
     BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET,
     BANK_CREDIT_CARD_COUNTS_DATASET,
+    BANK_CREDIT_CARD_OPERATION_COMPRAS,
+    BANK_CREDIT_CARD_OPERATION_COMPRAS_NON_BANKING,
+    BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_DATASET,
     BankCreditCardCountsCuratedObservation,
     BankCreditCardCountRawObservation,
     BankCreditCardOpsCuratedObservation,
@@ -43,9 +48,15 @@ def to_curated_bank_credit_card_ops(
         operations_per_active_card = None
         if total_active_cards not in (None, Decimal("0")):
             operations_per_active_card = observation.transaction_count / total_active_cards
+        canonical_operation_type = observation.operation_type
+        if (
+            observation.operation_type == BANK_CREDIT_CARD_OPERATION_COMPRAS_NON_BANKING
+            or observation.dataset_code == BANK_CREDIT_CARD_OPS_NON_BANKING_COMPRAS_DATASET
+        ):
+            canonical_operation_type = BANK_CREDIT_CARD_OPERATION_COMPRAS
         curated_observations.append(
             BankCreditCardOpsCuratedObservation(
-                operation_type=observation.operation_type,
+                operation_type=canonical_operation_type,
                 dataset_code=observation.dataset_code,
                 institution_code=observation.institution_code,
                 institution_name=observation.institution_name,
@@ -102,6 +113,12 @@ def to_curated_bank_credit_card_counts(
             == BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_SUPPLEMENTARY_DATASET
         ):
             row["cards_with_operations_supplementary"] = observation.card_count
+        elif observation.dataset_code == BANK_CREDIT_CARD_ACTIVE_CARDS_NON_BANKING_DATASET:
+            row["active_cards_primary"] = row["active_cards_primary"] + observation.card_count
+        elif observation.dataset_code == BANK_CREDIT_CARD_CARDS_WITH_OPERATIONS_NON_BANKING_DATASET:
+            row["cards_with_operations_primary"] = (
+                row["cards_with_operations_primary"] + observation.card_count
+            )
 
     curated: list[BankCreditCardCountsCuratedObservation] = []
     for (institution_code, period_month), row in sorted(counts_by_key.items()):

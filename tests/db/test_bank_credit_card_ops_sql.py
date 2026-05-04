@@ -97,3 +97,17 @@ def test_operations_rate_view_sql_exposes_primary_and_supplementary_operation_co
     assert "create view public.bank_credit_card_operations_rate_metrics" in sql
     assert "cards_with_operations_primary" in sql
     assert "cards_with_operations_supplementary" in sql
+
+
+def test_non_banking_credit_card_endpoints_sql_registers_tags_and_start_date():
+    sql = Path("db/013_non_banking_credit_card_endpoints.sql").read_text()
+
+    assert "bank_credit_card_ops_non_banking_compras_transaction_count" in sql
+    assert "SBIF_TCRED_NBANC_OPER_AGIFI_MRC_NUM" in sql
+    assert "bank_credit_card_ops_non_banking_compras_nominal_volume" in sql
+    assert "SBIF_TCRED_NBANC_OPER_AGIFI_MRC_$" in sql
+    assert "bank_credit_card_active_cards_non_banking" in sql
+    assert "SBIF_TCRED_NBANC_VIG_AGIFI_MRC_NUM" in sql
+    assert "bank_credit_card_cards_with_operations_non_banking" in sql
+    assert "SBIF_TCRED_NBANC_COPE_AGIFI_MRC_NUM" in sql
+    assert "date '2009-04-01'" in sql

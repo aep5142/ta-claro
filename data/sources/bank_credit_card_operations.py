@@ -36,6 +36,8 @@ class BankCreditCardCountsObservationBatch:
     latest_active_cards_supplementary_source_month: date | None
     latest_cards_with_operations_primary_source_month: date | None
     latest_cards_with_operations_supplementary_source_month: date | None
+    latest_active_cards_non_banking_source_month: date | None
+    latest_cards_with_operations_non_banking_source_month: date | None
 
 
 def build_cmf_cuadros_url(
@@ -479,11 +481,39 @@ async def fetch_card_counts_batch(
         fecha_fin=fecha_fin,
         dataset_code=config.cards_with_operations_supplementary_dataset_code,
     )
+    non_banking_active: list[BankCreditCardCountObservation] = []
+    if (
+        config.active_cards_non_banking_source_tag
+        and config.active_cards_non_banking_dataset_code
+    ):
+        non_banking_active = await fetch_card_count_observations(
+            client,
+            endpoint_base=config.source_endpoint_base,
+            tag=config.active_cards_non_banking_source_tag,
+            fecha_inicio=config.start_date.strftime("%Y%m%d"),
+            fecha_fin=fecha_fin,
+            dataset_code=config.active_cards_non_banking_dataset_code,
+        )
+    non_banking_operating: list[BankCreditCardCountObservation] = []
+    if (
+        config.cards_with_operations_non_banking_source_tag
+        and config.cards_with_operations_non_banking_dataset_code
+    ):
+        non_banking_operating = await fetch_card_count_observations(
+            client,
+            endpoint_base=config.source_endpoint_base,
+            tag=config.cards_with_operations_non_banking_source_tag,
+            fecha_inicio=config.start_date.strftime("%Y%m%d"),
+            fecha_fin=fecha_fin,
+            dataset_code=config.cards_with_operations_non_banking_dataset_code,
+        )
     raw_observations = [
         *to_card_count_raw_observations(active_primary),
         *to_card_count_raw_observations(active_supplementary),
         *to_card_count_raw_observations(operating_primary),
         *to_card_count_raw_observations(operating_supplementary),
+        *to_card_count_raw_observations(non_banking_active),
+        *to_card_count_raw_observations(non_banking_operating),
     ]
 
     return BankCreditCardCountsObservationBatch(
@@ -501,6 +531,8 @@ async def fetch_card_counts_batch(
                 *(observation.period_month for observation in active_supplementary),
                 *(observation.period_month for observation in operating_primary),
                 *(observation.period_month for observation in operating_supplementary),
+                *(observation.period_month for observation in non_banking_active),
+                *(observation.period_month for observation in non_banking_operating),
             ),
             default=None,
         ),
@@ -510,6 +542,8 @@ async def fetch_card_counts_batch(
                 *(observation.period_month for observation in active_supplementary),
                 *(observation.period_month for observation in operating_primary),
                 *(observation.period_month for observation in operating_supplementary),
+                *(observation.period_month for observation in non_banking_active),
+                *(observation.period_month for observation in non_banking_operating),
             ),
             default=None,
         ),
@@ -527,6 +561,14 @@ async def fetch_card_counts_batch(
         ),
         latest_cards_with_operations_supplementary_source_month=max(
             (observation.period_month for observation in operating_supplementary),
+            default=None,
+        ),
+        latest_active_cards_non_banking_source_month=max(
+            (observation.period_month for observation in non_banking_active),
+            default=None,
+        ),
+        latest_cards_with_operations_non_banking_source_month=max(
+            (observation.period_month for observation in non_banking_operating),
             default=None,
         ),
     )
