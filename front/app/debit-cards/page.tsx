@@ -1,5 +1,4 @@
-import { AppShell } from "@/components/app-shell";
-import { PlaceholderPanel } from "@/components/placeholder-panel";
+import { redirect } from "next/navigation";
 
 type DebitCardsPageProps = {
   searchParams: Promise<{
@@ -12,12 +11,12 @@ type DebitCardsPageProps = {
 
 export default async function DebitCardsPage({ searchParams }: DebitCardsPageProps) {
   const { view, start, end, uf } = await searchParams;
-  return (
-    <AppShell section="debit-cards" queryParams={{ view, start, end, uf }}>
-      <PlaceholderPanel
-        title="Debit Cards"
-        description="This section is visible in v1 but not yet wired to a live dataset."
-      />
-    </AppShell>
-  );
+  const params = new URLSearchParams();
+  if (view) params.set("view", view);
+  if (start) params.set("start", start);
+  if (end) params.set("end", end);
+  if (uf) params.set("uf", uf);
+  const query = params.toString();
+
+  redirect(`/debit-cards/transactions${query ? `?${query}` : ""}`);
 }

@@ -10,27 +10,27 @@ import {
   shouldIncludeInstitution,
 } from "@/lib/bank-presentation";
 import {
-  type CreditCardMetricRow,
-  fetchCreditCardMetrics,
-  fetchDatasetBoundary,
-  fetchLatestUfValue,
-  fetchOperationsRateBoundary,
-  fetchOperationsRateMetrics,
-  type OperationsRateMetricRow,
-} from "@/lib/supabase-queries";
+  type DebitCardMetricRow,
+  fetchDebitCardMetrics,
+  fetchDebitDatasetBoundary,
+  fetchDebitOperationMetricsBoundary,
+  fetchDebitOperationMetrics,
+  type DebitOperationMetricRow,
+} from "@/lib/supabase-debit-queries";
+import { fetchLatestUfValue } from "@/lib/supabase-queries";
 import {
-  chartViews,
-  defaultOperationsRateViewKey,
-  defaultViewKey,
-  isChartViewKey,
-  isOperationsRateOperation,
-  isOperationsRateViewKey,
-  operationLabelMap,
-  operationsRateViews,
-  type ChartViewKey,
-  type OperationName,
-  type OperationsRateViewKey,
-} from "@/lib/credit-card-config";
+  debitChartViews,
+  defaultDebitOperationsRateViewKey,
+  defaultDebitViewKey,
+  isDebitChartViewKey,
+  isDebitOperationsRateOperation,
+  isDebitOperationsRateViewKey,
+  debitOperationLabelMap,
+  debitOperationMetricsViews,
+  type DebitChartViewKey,
+  type DebitOperationName,
+  type DebitOperationMetricsViewKey,
+} from "@/lib/debit-card-config";
 import {
   addMonths,
   buildMonthOptions,
@@ -46,8 +46,8 @@ import {
 } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
-type CreditCardsDashboardProps = {
-  operation: OperationName;
+type DebitCardsDashboardProps = {
+  operation: DebitOperationName;
   initialView?: string;
   startMonthParam?: string;
   endMonthParam?: string;
@@ -70,26 +70,26 @@ type SummaryRow = {
   marketShareGrowthPp: number | null;
 };
 
-export function CreditCardsDashboard({
+export function DebitCardsDashboard({
   operation,
   initialView,
   startMonthParam,
   endMonthParam,
   ufParam,
-}: CreditCardsDashboardProps) {
-  const isOperationsRateDashboard = isOperationsRateOperation(operation);
+}: DebitCardsDashboardProps) {
+  const isOperationsRateDashboard = isDebitOperationsRateOperation(operation);
   const initialMetricKey = isOperationsRateDashboard
-    ? isOperationsRateViewKey(initialView)
+    ? isDebitOperationsRateViewKey(initialView)
       ? initialView
-      : defaultOperationsRateViewKey
-    : isChartViewKey(initialView)
+      : defaultDebitOperationsRateViewKey
+    : isDebitChartViewKey(initialView)
       ? initialView
-      : defaultViewKey;
+      : defaultDebitViewKey;
 
-  const [viewKey, setViewKey] = useState<ChartViewKey | OperationsRateViewKey>(initialMetricKey);
+  const [viewKey, setViewKey] = useState<DebitChartViewKey | DebitOperationMetricsViewKey>(initialMetricKey);
   const [boundaryState, setBoundaryState] = useState<BoundaryState | null>(null);
-  const [operationRows, setOperationRows] = useState<CreditCardMetricRow[]>([]);
-  const [operationsRateRows, setOperationsRateRows] = useState<OperationsRateMetricRow[]>([]);
+  const [operationRows, setOperationRows] = useState<DebitCardMetricRow[]>([]);
+  const [operationsRateRows, setOperationsRateRows] = useState<DebitOperationMetricRow[]>([]);
   const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
   const [isLoadingBounds, setIsLoadingBounds] = useState(true);
   const [isLoadingRows, setIsLoadingRows] = useState(false);
@@ -99,12 +99,12 @@ export function CreditCardsDashboard({
   useEffect(() => {
     setViewKey(
       isOperationsRateDashboard
-        ? isOperationsRateViewKey(initialView)
+        ? isDebitOperationsRateViewKey(initialView)
           ? initialView
-          : defaultOperationsRateViewKey
-        : isChartViewKey(initialView)
+          : defaultDebitOperationsRateViewKey
+        : isDebitChartViewKey(initialView)
           ? initialView
-          : defaultViewKey
+          : defaultDebitViewKey
     );
   }, [initialView, isOperationsRateDashboard]);
 
@@ -120,8 +120,8 @@ export function CreditCardsDashboard({
       try {
         if (isOperationsRateDashboard) {
           const [latestMonth, earliestMonth] = await Promise.all([
-            fetchOperationsRateBoundary("latest"),
-            fetchOperationsRateBoundary("earliest"),
+            fetchDebitOperationMetricsBoundary("latest"),
+            fetchDebitOperationMetricsBoundary("earliest"),
           ]);
 
           if (!latestMonth || !earliestMonth) {
@@ -142,13 +142,13 @@ export function CreditCardsDashboard({
 
         const chileToday = getChileTodayIso();
         const [latestMonth, earliestMonth, latestUf] = await Promise.all([
-          fetchDatasetBoundary(operation, "latest"),
-          fetchDatasetBoundary(operation, "earliest"),
+          fetchDebitDatasetBoundary(operation, "latest"),
+          fetchDebitDatasetBoundary(operation, "earliest"),
           fetchLatestUfValue(chileToday),
         ]);
 
         if (!latestMonth || !earliestMonth) {
-          throw new Error("No credit-card data is available for this operation.");
+          throw new Error("No debit-card data is available for this operation.");
         }
 
         if (!isCancelled) {
@@ -207,7 +207,7 @@ export function CreditCardsDashboard({
 
       try {
         if (isOperationsRateDashboard) {
-          const nextRows = await fetchOperationsRateMetrics(`${startMonth}-01`, `${endMonth}-01`);
+          const nextRows = await fetchDebitOperationMetrics(`${startMonth}-01`, `${endMonth}-01`);
 
           if (!nextRows.length) {
             throw new Error("The selected time range returned no rows.");
@@ -220,7 +220,7 @@ export function CreditCardsDashboard({
           return;
         }
 
-        const nextRows = await fetchCreditCardMetrics(operation, `${startMonth}-01`, `${endMonth}-01`);
+        const nextRows = await fetchDebitCardMetrics(operation, `${startMonth}-01`, `${endMonth}-01`);
 
         if (!nextRows.length) {
           throw new Error("The selected time range returned no rows.");
@@ -234,7 +234,7 @@ export function CreditCardsDashboard({
         if (!isCancelled) {
           setOperationRows([]);
           setOperationsRateRows([]);
-          setErrorMessage(error instanceof Error ? error.message : "Unable to load credit-card metrics.");
+          setErrorMessage(error instanceof Error ? error.message : "Unable to load debit-card metrics.");
         }
       } finally {
         if (!isCancelled) {
@@ -258,8 +258,8 @@ export function CreditCardsDashboard({
   const months = useMemo(() => buildMonthOptions(startMonth, endMonth), [startMonth, endMonth]);
 
   const activeMetric = isOperationsRateDashboard
-    ? operationsRateViews.find((item) => item.key === viewKey) ?? operationsRateViews[0]
-    : chartViews.find((item) => item.key === viewKey) ?? chartViews[0];
+    ? debitOperationMetricsViews.find((item) => item.key === viewKey) ?? debitOperationMetricsViews[0]
+    : debitChartViews.find((item) => item.key === viewKey) ?? debitChartViews[0];
 
   const filteredOperationRows = useMemo(
     () =>
@@ -313,7 +313,7 @@ export function CreditCardsDashboard({
         const monthKey = row.period_month.slice(0, 7);
         const metricValue = getOperationsRateMetricValue(
           row,
-          viewKey as OperationsRateViewKey
+          viewKey as DebitOperationMetricsViewKey
         );
         const canonical = getCanonicalInstitution(row.institution_name, row.institution_code);
 
@@ -329,7 +329,7 @@ export function CreditCardsDashboard({
         const monthKey = row.period_month.slice(0, 7);
         const metricValue = getOperationMetricValue(
           row,
-          viewKey as ChartViewKey,
+          viewKey as DebitChartViewKey,
           activeUfValue
         );
         const canonical = getCanonicalInstitution(row.institution_name, row.institution_code);
@@ -435,8 +435,8 @@ export function CreditCardsDashboard({
           return accumulator;
         }
 
-        accumulator.volume += Number((row as CreditCardMetricRow).real_value_uf) * activeUfValue;
-        accumulator.transactions += Number((row as CreditCardMetricRow).transaction_count);
+        accumulator.volume += Number((row as DebitCardMetricRow).real_value_uf) * activeUfValue;
+        accumulator.transactions += Number((row as DebitCardMetricRow).transaction_count);
         return accumulator;
       },
       { volume: 0, transactions: 0 }
@@ -463,21 +463,21 @@ export function CreditCardsDashboard({
         }
 
         const currentValue = isOperationsRateDashboard
-          ? getOperationsRateMetricValue(row as OperationsRateMetricRow, viewKey as OperationsRateViewKey)
-          : getOperationMetricValue(row as CreditCardMetricRow, viewKey as ChartViewKey, activeUfValue);
+          ? getOperationsRateMetricValue(row as DebitOperationMetricRow, viewKey as DebitOperationMetricsViewKey)
+          : getOperationMetricValue(row as DebitCardMetricRow, viewKey as DebitChartViewKey, activeUfValue);
 
         const startRow = firstRowsByCode.get(institutionCode);
         const startValue = startRow
           ? isOperationsRateDashboard
-            ? getOperationsRateMetricValue(startRow as OperationsRateMetricRow, viewKey as OperationsRateViewKey)
-            : getOperationMetricValue(startRow as CreditCardMetricRow, viewKey as ChartViewKey, activeUfValue)
+            ? getOperationsRateMetricValue(startRow as DebitOperationMetricRow, viewKey as DebitOperationMetricsViewKey)
+            : getOperationMetricValue(startRow as DebitCardMetricRow, viewKey as DebitChartViewKey, activeUfValue)
           : null;
 
         const shareEnd = supportsMarketShare
           ? calculateMarketShares(
               viewKey === "volume"
-                ? Number((row as CreditCardMetricRow).real_value_uf) * activeUfValue
-                : Number((row as CreditCardMetricRow).transaction_count),
+                ? Number((row as DebitCardMetricRow).real_value_uf) * activeUfValue
+                : Number((row as DebitCardMetricRow).transaction_count),
               viewKey === "volume" ? totals.volume : totals.transactions
             )
           : null;
@@ -487,7 +487,7 @@ export function CreditCardsDashboard({
           }
           const systemStartTotal = calculateSystemTotal(
             firstMonthRows,
-            viewKey as ChartViewKey | OperationsRateViewKey,
+            viewKey as DebitChartViewKey | DebitOperationMetricsViewKey,
             activeUfValue,
             isOperationsRateDashboard
           );
@@ -498,8 +498,8 @@ export function CreditCardsDashboard({
             return 0;
           }
           const institutionStartValue = getOperationMetricValue(
-            startRow as CreditCardMetricRow,
-            viewKey as ChartViewKey,
+            startRow as DebitCardMetricRow,
+            viewKey as DebitChartViewKey,
             activeUfValue
           );
           return institutionStartValue === null
@@ -538,12 +538,12 @@ export function CreditCardsDashboard({
 
     if (isOperationsRateDashboard) {
       const systemCurrentValue = calculateOperationsRateSystemValue(
-        latestMonthRows as OperationsRateMetricRow[],
-        viewKey as OperationsRateViewKey
+        latestMonthRows as DebitOperationMetricRow[],
+        viewKey as DebitOperationMetricsViewKey
       );
       const systemStartValue = calculateOperationsRateSystemValue(
-        firstMonthRows as OperationsRateMetricRow[],
-        viewKey as OperationsRateViewKey
+        firstMonthRows as DebitOperationMetricRow[],
+        viewKey as DebitOperationMetricsViewKey
       );
 
       return systemCurrentValue === null
@@ -562,8 +562,8 @@ export function CreditCardsDashboard({
     }
 
     if (viewKey === "operations-per-active-card") {
-      const systemCurrentValue = calculateOperationsPerActiveCardSystemValue(latestMonthRows as CreditCardMetricRow[]);
-      const systemStartValue = calculateOperationsPerActiveCardSystemValue(firstMonthRows as CreditCardMetricRow[]);
+      const systemCurrentValue = calculateOperationsPerActiveCardSystemValue(latestMonthRows as DebitCardMetricRow[]);
+      const systemStartValue = calculateOperationsPerActiveCardSystemValue(firstMonthRows as DebitCardMetricRow[]);
 
       return systemCurrentValue === null
         ? selectedRows
@@ -609,7 +609,7 @@ export function CreditCardsDashboard({
     const othersShare = calculateMarketShares(othersValue, totalValue);
     const systemStartTotal = calculateSystemTotal(
       firstMonthRows,
-      viewKey as ChartViewKey | OperationsRateViewKey,
+      viewKey as DebitChartViewKey | DebitOperationMetricsViewKey,
       activeUfValue,
       isOperationsRateDashboard
     );
@@ -618,7 +618,7 @@ export function CreditCardsDashboard({
       if (!startRow) {
         return accumulator;
       }
-      const startValue = getOperationMetricValue(startRow as CreditCardMetricRow, viewKey as ChartViewKey, activeUfValue);
+      const startValue = getOperationMetricValue(startRow as DebitCardMetricRow, viewKey as DebitChartViewKey, activeUfValue);
       return accumulator + (startValue ?? 0);
     }, 0);
     const othersStartValue = systemStartTotal === null ? null : Math.max(systemStartTotal - selectedStartTotal, 0);
@@ -629,7 +629,7 @@ export function CreditCardsDashboard({
         institutionName: "System",
         currentValue: totalValue,
         metricGrowthPct: calculateVsStart(
-          calculateSystemTotal(firstMonthRows, viewKey as ChartViewKey | OperationsRateViewKey, activeUfValue, isOperationsRateDashboard),
+          calculateSystemTotal(firstMonthRows, viewKey as DebitChartViewKey | DebitOperationMetricsViewKey, activeUfValue, isOperationsRateDashboard),
           totalValue,
           startMonth === latestLoadedMonth
         ),
@@ -695,10 +695,10 @@ export function CreditCardsDashboard({
         <div className="max-w-4xl">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand">Chilean banking · monthly series</p>
           <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:mt-5 sm:text-5xl lg:text-6xl">
-            {getEditorialTitle(operationLabelMap[operation])}
+            {getEditorialTitle(debitOperationLabelMap[operation])}
           </h1>
           <p className="mt-4 max-w-none text-sm leading-6 text-muted sm:mt-5 sm:text-base sm:leading-7 lg:text-lg">
-            Monthly credit-card analysis across banks, with UF-adjusted CLP values for volume and ticket metrics, plus the active-card and activation-rate views.
+            Monthly debit-card and ATM-only-card analysis across banks, with UF-adjusted CLP values for volume and ticket metrics, plus combined active-card and activation-rate views.
           </p>
         </div>
       </div>
@@ -714,7 +714,7 @@ export function CreditCardsDashboard({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 pb-1">
-              {(isOperationsRateDashboard ? operationsRateViews : chartViews).map((item, index, items) => (
+              {(isOperationsRateDashboard ? debitOperationMetricsViews : debitChartViews).map((item, index, items) => (
                 <MetricTabButton
                   key={item.key}
                   active={viewKey === item.key}
@@ -723,10 +723,10 @@ export function CreditCardsDashboard({
                   description={
                     !isOperationsRateDashboard
                       ? item.key === "average-ticket"
-                        ? `Avg ${operationLabelMap[operation]} in CLP.`
+                        ? `Avg ${debitOperationLabelMap[operation]} in CLP.`
                         : item.key === "operations-per-active-card"
-                          ? `Number of ${operationLabelMap[operation]} per active credit card.`
-                          : item.description.replace("for the selected operation", `for ${operationLabelMap[operation]}`)
+                          ? `Number of .* per active debit/ATM-only card.`
+                          : item.description.replace("for the selected operation", `for ${debitOperationLabelMap[operation]}`)
                       : item.description
                   }
                   unitLabel={item.unitLabel}
@@ -838,8 +838,8 @@ export function CreditCardsDashboard({
 }
 
 function getOperationMetricValue(
-  row: CreditCardMetricRow,
-  viewKey: ChartViewKey,
+  row: DebitCardMetricRow,
+  viewKey: DebitChartViewKey,
   activeUfValue: number
 ): number | null {
   if (viewKey === "volume") {
@@ -858,8 +858,8 @@ function getOperationMetricValue(
   return null;
 }
 
-function aggregateOperationRows(rows: CreditCardMetricRow[]): CreditCardMetricRow[] {
-  const grouped = new Map<string, CreditCardMetricRow>();
+function aggregateOperationRows(rows: DebitCardMetricRow[]): DebitCardMetricRow[] {
+  const grouped = new Map<string, DebitCardMetricRow>();
 
   rows.forEach((row) => {
     const canonical = getCanonicalInstitution(row.institution_name, row.institution_code);
@@ -896,8 +896,8 @@ function aggregateOperationRows(rows: CreditCardMetricRow[]): CreditCardMetricRo
   return Array.from(grouped.values());
 }
 
-function aggregateOperationsRateRows(rows: OperationsRateMetricRow[]): OperationsRateMetricRow[] {
-  const grouped = new Map<string, OperationsRateMetricRow>();
+function aggregateOperationsRateRows(rows: DebitOperationMetricRow[]): DebitOperationMetricRow[] {
+  const grouped = new Map<string, DebitOperationMetricRow>();
 
   rows.forEach((row) => {
     const canonical = getCanonicalInstitution(row.institution_name, row.institution_code);
@@ -920,10 +920,6 @@ function aggregateOperationsRateRows(rows: OperationsRateMetricRow[]): Operation
       Number(existing.active_cards_supplementary) + Number(row.active_cards_supplementary);
     const totalCardsWithOperations =
       Number(existing.total_cards_with_operations) + Number(row.total_cards_with_operations);
-    const cardsWithOperationsPrimary =
-      Number(existing.cards_with_operations_primary) + Number(row.cards_with_operations_primary);
-    const cardsWithOperationsSupplementary =
-      Number(existing.cards_with_operations_supplementary) + Number(row.cards_with_operations_supplementary);
 
     grouped.set(key, {
       ...existing,
@@ -931,8 +927,6 @@ function aggregateOperationsRateRows(rows: OperationsRateMetricRow[]): Operation
       active_cards_primary: String(activeCardsPrimary),
       active_cards_supplementary: String(activeCardsSupplementary),
       total_cards_with_operations: String(totalCardsWithOperations),
-      cards_with_operations_primary: String(cardsWithOperationsPrimary),
-      cards_with_operations_supplementary: String(cardsWithOperationsSupplementary),
       operations_rate: totalActiveCards > 0 ? String(totalCardsWithOperations / totalActiveCards) : null,
     });
   });
@@ -941,8 +935,8 @@ function aggregateOperationsRateRows(rows: OperationsRateMetricRow[]): Operation
 }
 
 function getOperationsRateMetricValue(
-  row: OperationsRateMetricRow,
-  viewKey: OperationsRateViewKey
+  row: DebitOperationMetricRow,
+  viewKey: DebitOperationMetricsViewKey
 ): number | null {
   if (viewKey === "total-active-cards") {
     return Number(row.total_active_cards);
@@ -952,18 +946,6 @@ function getOperationsRateMetricValue(
   }
   if (viewKey === "total-activation-rate") {
     return row.operations_rate === null ? null : Number(row.operations_rate) * 100;
-  }
-  if (viewKey === "primary-activation-rate") {
-    const activeCardsPrimary = Number(row.active_cards_primary);
-    return activeCardsPrimary > 0
-      ? (Number(row.cards_with_operations_primary) / activeCardsPrimary) * 100
-      : null;
-  }
-  if (viewKey === "supplementary-activation-rate") {
-    const activeCardsSupplementary = Number(row.active_cards_supplementary);
-    return activeCardsSupplementary > 0
-      ? (Number(row.cards_with_operations_supplementary) / activeCardsSupplementary) * 100
-      : null;
   }
   if (viewKey === "supplementary-rate") {
     const primaryCards = Number(row.active_cards_primary);
@@ -1077,7 +1059,7 @@ function calculateVsStart(startValue: number | null, currentValue: number | null
   return ((currentValue - startValue) / startValue) * 100;
 }
 
-function calculateSystemAverage(rows: Array<CreditCardMetricRow | OperationsRateMetricRow>, activeUfValue: number) {
+function calculateSystemAverage(rows: Array<DebitCardMetricRow | DebitOperationMetricRow>, activeUfValue: number) {
   const totals = rows.reduce(
     (accumulator, row) => {
       if (!("real_value_uf" in row) || !("transaction_count" in row)) {
@@ -1094,7 +1076,7 @@ function calculateSystemAverage(rows: Array<CreditCardMetricRow | OperationsRate
   return totals.transactions > 0 ? (totals.volume * 1_000_000) / totals.transactions : null;
 }
 
-function calculateOperationsPerActiveCardSystemValue(rows: CreditCardMetricRow[]) {
+function calculateOperationsPerActiveCardSystemValue(rows: DebitCardMetricRow[]) {
   const totals = rows.reduce(
     (accumulator, row) => {
       accumulator.transactions += Number(row.transaction_count);
@@ -1107,17 +1089,13 @@ function calculateOperationsPerActiveCardSystemValue(rows: CreditCardMetricRow[]
   return totals.activeCards > 0 ? totals.transactions / totals.activeCards : null;
 }
 
-function calculateOperationsRateSystemValue(rows: OperationsRateMetricRow[], viewKey: OperationsRateViewKey) {
+function calculateOperationsRateSystemValue(rows: DebitOperationMetricRow[], viewKey: DebitOperationMetricsViewKey) {
   const totals = rows.reduce(
     (accumulator, row) => {
       accumulator.totalActiveCards += Number(row.total_active_cards);
       accumulator.activeCardsPrimary += Number(row.active_cards_primary);
       accumulator.activeCardsSupplementary += Number(row.active_cards_supplementary);
       accumulator.totalCardsWithOperations += Number(row.total_cards_with_operations);
-      accumulator.totalCardsWithOperationsPrimary += Number(row.cards_with_operations_primary);
-      accumulator.totalCardsWithOperationsSupplementary += Number(
-        row.cards_with_operations_supplementary
-      );
       return accumulator;
     },
     {
@@ -1125,8 +1103,6 @@ function calculateOperationsRateSystemValue(rows: OperationsRateMetricRow[], vie
       activeCardsPrimary: 0,
       activeCardsSupplementary: 0,
       totalCardsWithOperations: 0,
-      totalCardsWithOperationsPrimary: 0,
-      totalCardsWithOperationsSupplementary: 0,
     }
   );
 
@@ -1139,16 +1115,6 @@ function calculateOperationsRateSystemValue(rows: OperationsRateMetricRow[], vie
   if (viewKey === "total-activation-rate") {
     return totals.totalActiveCards > 0 ? (totals.totalCardsWithOperations / totals.totalActiveCards) * 100 : null;
   }
-  if (viewKey === "primary-activation-rate") {
-    return totals.activeCardsPrimary > 0
-      ? (totals.totalCardsWithOperationsPrimary / totals.activeCardsPrimary) * 100
-      : null;
-  }
-  if (viewKey === "supplementary-activation-rate") {
-    return totals.activeCardsSupplementary > 0
-      ? (totals.totalCardsWithOperationsSupplementary / totals.activeCardsSupplementary) * 100
-      : null;
-  }
   if (viewKey === "supplementary-rate") {
     return totals.activeCardsPrimary > 0
       ? (totals.activeCardsSupplementary / totals.activeCardsPrimary) * 100
@@ -1159,15 +1125,15 @@ function calculateOperationsRateSystemValue(rows: OperationsRateMetricRow[], vie
 }
 
 function calculateSystemTotal(
-  rows: Array<CreditCardMetricRow | OperationsRateMetricRow>,
-  viewKey: ChartViewKey | OperationsRateViewKey,
+  rows: Array<DebitCardMetricRow | DebitOperationMetricRow>,
+  viewKey: DebitChartViewKey | DebitOperationMetricsViewKey,
   activeUfValue: number,
   isOperationsRateDashboard: boolean
 ) {
   return rows.reduce((total, row) => {
     const nextValue = isOperationsRateDashboard
-      ? getOperationsRateMetricValue(row as OperationsRateMetricRow, viewKey as OperationsRateViewKey)
-      : getOperationMetricValue(row as CreditCardMetricRow, viewKey as ChartViewKey, activeUfValue);
+      ? getOperationsRateMetricValue(row as DebitOperationMetricRow, viewKey as DebitOperationMetricsViewKey)
+      : getOperationMetricValue(row as DebitCardMetricRow, viewKey as DebitChartViewKey, activeUfValue);
 
     return nextValue === null ? total : total + nextValue;
   }, 0);
@@ -1175,7 +1141,7 @@ function calculateSystemTotal(
 
 function getEditorialTitle(operationLabel: string) {
   if (operationLabel === "Operation Metrics") {
-    return "Credit-card activation metrics across the system";
+    return "Debit-card activation metrics across the system";
   }
 
   return `${operationLabel} bank by bank`;

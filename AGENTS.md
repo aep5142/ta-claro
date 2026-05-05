@@ -1,9 +1,10 @@
 # Project Context
 
-This repo has two active ETL subsystems and one active frontend demo:
+This repo has three active ETL subsystems and one active frontend demo:
 
 - UF ingestion
 - unified bank credit-card operations ingestion, including card-count totals
+- unified bank debit-card and ATM-only-card operations ingestion, including combined card-count totals
 - `front/` Next.js demo shell
 
 # Runtime
@@ -16,18 +17,20 @@ This repo has two active ETL subsystems and one active frontend demo:
 # Active Entrypoints
 
 - UF worker: `uv run data/historical_api_uf.py`
-- Card worker: `uv run data/bank_credit_card_ops.py`
+- Credit-card worker: `uv run data/bank_credit_card_ops.py`
+- Debit-card worker: `uv run data/bank_debit_card_ops.py`
 
 Primary worker modules:
 
 - `data/workers/uf_worker.py`
 - `data/workers/bank_credit_card_ops_worker.py`
+- `data/workers/bank_debit_card_ops_worker.py`
 
 # External Services
 
 - Supabase is the active backend/database.
 - UF env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CMF_API_KEY`, `BASE_ENDPOINT_CMF_UF`
-- Card env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, optional `BASE_ENDPOINT_CMF_CARDS`
+- Card env (credit and debit): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, optional `BASE_ENDPOINT_CMF_CARDS`
 
 # UF Rules
 
@@ -65,6 +68,31 @@ Primary worker modules:
 - `institution_code` is derived from `source_codigo` by splitting on `_`, locating `AGIFI`, and taking the next token.
 - For non-banking card tags that use `AGIFI_MRC`, do not use plain `MRC` as the institution key; derive a per-series key from the trailing `source_codigo` tokens (for example `TENPO_MCRD`) to avoid issuer collisions.
 
+# Debit Pipeline Rules
+
+- The debit subsystem is one unified worker covering:
+  - monthly debit transaction metrics
+  - monthly ATM withdrawal metrics
+  - monthly combined debit + ATM-only card-base totals
+- Canonical operation types:
+  - `Debit Transactions`
+  - `ATM Withdrawals`
+- Operation-metrics canonical operation type: `Total Activation Rate`
+- Debit operation endpoints use:
+  - `FechaInicio=20090401`
+  - `FechaFin` = run date
+  - `from=reload`
+- Combined card-base logic must sum debit-card and ATM-only datasets:
+  - primary active cards
+  - supplementary active cards
+  - total active cards
+  - cards with operations
+- Canonical ratios:
+  - `operations_rate = total_cards_with_operations / total_active_cards`
+  - `supplementary_rate = active_cards_supplementary / active_cards_primary`
+- Failed runs must not advance sync state.
+- Debit ops sync state stays separate from UF and credit sync state rows.
+
 # Card Worker Flow
 
 - Read active endpoint rows from `public.cmf_datasets`.
@@ -92,13 +120,17 @@ Primary worker modules:
 
 - Sources:
   - `data/sources/bank_credit_card_operations.py`
+  - `data/sources/bank_debit_card_operations.py`
 - Transforms:
   - `data/transforms/bank_credit_card_ops.py`
+  - `data/transforms/bank_debit_card_ops.py`
 - Loaders:
   - `data/loaders/bank_credit_card_ops_loader.py`
+  - `data/loaders/bank_debit_card_ops_loader.py`
   - `data/loaders/bank_credit_card_ops_sync_state_loader.py`
 - Models:
   - `data/models/bank_credit_card_operations.py`
+  - `data/models/bank_debit_card_operations.py`
   - `data/models/uf.py`
 
 # Active Supabase Schema
@@ -113,10 +145,18 @@ Primary worker modules:
   - `public.bank_credit_card_ops_raw`
   - `public.bank_credit_card_ops_curated`
   - `public.bank_credit_card_ops_metrics` view
+- Debit ops:
+  - `public.bank_debit_card_ops_raw`
+  - `public.bank_debit_card_ops_curated`
+  - `public.bank_debit_card_ops_metrics` view
 - Card counts / operations rate:
   - `public.bank_credit_card_counts_raw`
   - `public.bank_credit_card_counts_curated`
   - `public.bank_credit_card_operations_rate_metrics` view
+- Debit counts / operation metrics:
+  - `public.bank_debit_card_counts_raw`
+  - `public.bank_debit_card_counts_curated`
+  - `public.bank_debit_card_operation_metrics` view
 
 # Data Contracts
 
@@ -165,6 +205,7 @@ Active migration set:
 - `db/011_rename_operations_rate_to_total_activation_rate.sql`
 - `db/012_operations_rate_view_add_cards_with_operations_fields.sql`
 - `db/013_non_banking_credit_card_endpoints.sql`
+- `db/014_debit_card_metrics.sql`
 
 # Repo Structure
 
@@ -177,7 +218,8 @@ Active migration set:
 - Source tests include a unified live-payload regression fixture for the current card ops payload shape.
 - Old split-CMF tests/fixtures are removed from active `tests/`.
 - Railway should run workers as worker services, not web apps.
-- Card worker deploy command: `uv run data/bank_credit_card_ops.py`
+- Credit-card worker deploy command: `uv run data/bank_credit_card_ops.py`
+- Debit-card worker deploy command: `uv run data/bank_debit_card_ops.py`
 
 # Frontend Direction
 
@@ -192,8 +234,7 @@ Active migration set:
 
 - Top bar uses the Ta-Claro logo.
 - Primary sections are `Credit Cards`, `Debit Cards`, `Accounts`, `Loans`.
-- Only `Credit Cards` is functional in v1; the others are placeholders inside the shared shell.
-- If asked to build debit cards, first ask for debit-card metrics and source endpoints before planning implementation.
+- `Credit Cards` and `Debit Cards` are functional in v1; `Accounts` and `Loans` remain placeholders.
 - Debit-card work should reuse the credit-card frontend pattern and interaction model rather than redesigning the shell.
 
 Credit-card routes:
@@ -204,12 +245,18 @@ Credit-card routes:
 - `/credit-cards/total-activation-rate`
 - `/credit-cards/operations-rate` redirects to `/credit-cards/total-activation-rate` preserving `view`
 
+Debit-card routes:
+
+- `/debit-cards/transactions`
+- `/debit-cards/atm-withdrawals`
+- `/debit-cards/total-activation-rate`
+
 Current shell/UI constraints:
 
 - Top navbar is centered, text-first, with underline active state and a visual-only `Login` CTA.
 - Left sidebar is minimalist text nav; Credit Cards shows the operation subroutes.
 - Bank selection lives under the chart in `Banks shown` with `All`, `None`, and `Reset`.
-- Bottom summary table includes `VS Start` and preserves the `Others` row behavior.
+- Bottom summary table keeps the `Others` row for share-applicable metrics and uses month-explicit comparison headers.
 - Chart controls and rendering should stay aligned with the restored `origin/main` implementation.
 - Sidebar uses a `Credit Cards` macro title and no `Live` badges.
 - Dashboard copy should describe the product, not repeat the shareable route.
@@ -240,7 +287,27 @@ Credit-card behavior:
 - Point markers shrink for long date ranges.
 - Tooltips support hover/focus inspection.
 - Tooltip share line should show `XX% of the system` using system-wide month totals, not selected-bank totals; omit that line for `Transactions`.
-- For non-banking issuers, frontend should include only `Tenpo Payments S.A. - Tarjeta Mastercard`, displayed as `Tenpo`; other non-banking issuer-brand rows are filtered out in UI.
+- For non-banking issuers, frontend includes:
+  - `Tenpo Payments S.A. - Tarjeta Mastercard`, displayed as `Tenpo`
+  - the Promotora CMR Falabella issuer-brand rows, merged with `CMR Falabella S.A (SAG)` and displayed as `CMR Falabella`
+- Other non-banking issuer-brand rows are filtered out in UI.
+
+Debit-card behavior:
+
+- Section title is `Debit Cards`, and description explicitly states it includes debit cards and ATM-only cards.
+- Analysis tab is shareable via the `view` query param.
+- Operation pages expose `Volume`, `Transactions`, `Avg. Transaction`, and `Operations per Active Card`.
+- Operation Metrics page exposes:
+  - `Total Active Cards`
+  - `Primary Active Cards`
+  - `Supplementary Active Cards`
+  - `Total Cards with Operations`
+  - `Total Activation Rate`
+  - `Supplementary Rate`
+- Debit operation metrics do not expose:
+  - `Primary Activation Rate`
+  - `Supplementary Activation Rate`
+- Operational denominator for `Operations per Active Card` uses the combined debit + ATM-only active-card base.
 
 Formatting and metric rules:
 
@@ -252,6 +319,13 @@ Formatting and metric rules:
 - Percentages use `,` as decimal separator with 1 decimal place.
 - Omit last-visible/last-loaded month copy because Start/End already show the range.
 - Share-based tables include an `Others` row.
+- In share-applicable operation views (`Volume`, `Transactions`), table columns are:
+  - `Bank`
+  - `<Metric>`
+  - `<Metric> <End> vs <Start>` (percentage growth)
+  - `Market Share <End>`
+  - `Market Share <End> vs <Start>` (absolute pp delta with direction arrow)
+- Date/input query updates in the sidebar must preserve scroll position (no jump to top while editing filters).
 - Bank selector pills show only the bank name.
 
 Frontend data access:
@@ -260,6 +334,23 @@ Frontend data access:
 - Frontend reads:
   - `public.bank_credit_card_ops_metrics`
   - `public.bank_credit_card_operations_rate_metrics`
+  - `public.bank_debit_card_ops_metrics`
+  - `public.bank_debit_card_operation_metrics`
   - `public.uf_values`
 - The browser path is public read-only; there is no login in v1.
 - Frontend must auto-paginate Supabase reads for larger date ranges and must not treat missing rows as zero values.
+
+# Session Handoff (Debit Rollout)
+
+- Debit rollout execution log is tracked in `final_plan_debit_cards.txt`.
+- Completed phases:
+  - Phase 0 (execution scaffold)
+  - Phase 1 (database migration + SQL tests)
+  - Phase 2 (backend domain/transforms/loaders + tests)
+  - Phase 3 (sources/worker/entrypoint + tests)
+  - Phase 4 (frontend config/query wiring + contract tests)
+- Next phase:
+  - Phase 5 (frontend UI replication of credit-card dashboard behavior for debit routes)
+- Current debit frontend status:
+  - route scaffolding and config/query modules exist
+  - debit pages are still placeholder-driven pending full dashboard replication
