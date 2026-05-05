@@ -220,6 +220,7 @@ Active migration set:
 - Railway should run workers as worker services, not web apps.
 - Credit-card worker deploy command: `uv run data/bank_credit_card_ops.py`
 - Debit-card worker deploy command: `uv run data/bank_debit_card_ops.py`
+- Railway worker env var workaround (mise/aqua uv attestation check): set `MISE_AQUA_GITHUB_ATTESTATIONS=false`.
 
 # Frontend Direction
 
@@ -299,8 +300,6 @@ Debit-card behavior:
 - Operation pages expose `Volume`, `Transactions`, `Avg. Transaction`, and `Operations per Active Card`.
 - Operation Metrics page exposes:
   - `Total Active Cards`
-  - `Primary Active Cards`
-  - `Supplementary Active Cards`
   - `Total Cards with Operations`
   - `Total Activation Rate`
   - `Supplementary Rate`
@@ -322,11 +321,14 @@ Formatting and metric rules:
 - In share-applicable operation views (`Volume`, `Transactions`), table columns are:
   - `Bank`
   - `<Metric>`
-  - `<Metric> <End> vs <Start>` (percentage growth)
+  - `Growth <Metric> <End> vs <Start>` (percentage growth)
   - `Market Share <End>`
   - `Market Share <End> vs <Start>` (absolute pp delta with direction arrow)
+- If a bank has no start-month market-share row but has an end-month row, treat start-month market share as `0` for market-share pp delta.
+- If a bank has no start-month metric row, do not compute `<Metric>` growth for that bank (show no value for growth).
 - Date/input query updates in the sidebar must preserve scroll position (no jump to top while editing filters).
 - Bank selector pills show only the bank name.
+- `CAR S.A.` and `Banco Ripley` must be merged and displayed as `Banco Ripley`.
 
 Frontend data access:
 
@@ -349,8 +351,8 @@ Frontend data access:
   - Phase 2 (backend domain/transforms/loaders + tests)
   - Phase 3 (sources/worker/entrypoint + tests)
   - Phase 4 (frontend config/query wiring + contract tests)
-- Next phase:
-  - Phase 5 (frontend UI replication of credit-card dashboard behavior for debit routes)
+  - Phase 5 (frontend UI replication for debit routes)
+  - Phase 6 (final verification and deployment prep)
 - Current debit frontend status:
-  - route scaffolding and config/query modules exist
-  - debit pages are still placeholder-driven pending full dashboard replication
+  - debit dashboard routes are fully wired (no placeholders)
+  - market-share and growth table behavior follows current rules above
