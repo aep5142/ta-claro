@@ -55,20 +55,6 @@ export const debitOperationMetricsViews = [
     unitLabel: "Number of active cards (#).",
   },
   {
-    key: "primary-active-cards",
-    label: "Primary Active Cards",
-    metricType: "count" as const,
-    description: "Combined active primary debit and ATM-only cards per bank and month.",
-    unitLabel: "Number of active cards (#).",
-  },
-  {
-    key: "supplementary-active-cards",
-    label: "Supplementary Active Cards",
-    metricType: "count" as const,
-    description: "Combined active supplementary debit and ATM-only cards per bank and month.",
-    unitLabel: "Number of active cards (#).",
-  },
-  {
     key: "total-cards-with-operations",
     label: "Total Cards with Operations",
     metricType: "count" as const,

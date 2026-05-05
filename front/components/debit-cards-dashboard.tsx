@@ -776,7 +776,7 @@ export function DebitCardsDashboard({
                   <th className="py-3 pr-3 sm:py-4 sm:pr-6">Bank</th>
                   <th className="py-3 pr-3 text-center sm:py-4 sm:pr-6">{activeMetric.label}</th>
                   <th className="py-3 pr-3 text-center sm:py-4 sm:pr-6">
-                    {activeMetric.label} {tableEndMonthLabel} vs {tableStartMonthLabel}
+                    Growth {activeMetric.label} {tableEndMonthLabel} vs {tableStartMonthLabel}
                   </th>
                   {supportsMarketShare ? (
                     <th className="py-3 pr-3 text-center sm:py-4 sm:pr-6">
