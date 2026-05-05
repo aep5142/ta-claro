@@ -130,13 +130,16 @@ Execution Phases
   - commit: phase frontend config/query commit created
 
 - Phase 5: Frontend UI
-  - status: pending
+  - status: done
   - tests first:
     - extend frontend coverage where practical for view handling and supported tabs
   - implementation:
     - replace debit placeholder with credit-style dashboard replication
   - verification:
+    - uv run pytest tests/front/test_debit_frontend_contracts.py
+    - result: 3 passed
     - run npm run build in front/
+    - result: build passes
   - commit: pending
 
 - Phase 6: Final Verification And Deployment Prep

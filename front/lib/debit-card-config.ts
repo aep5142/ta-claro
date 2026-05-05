@@ -90,3 +90,40 @@ export const debitOperationMetricsViews = [
     unitLabel: "Percentage of primary cards.",
   },
 ] as const;
+
+export const debitOperationLabelMap: Record<DebitOperationName, string> = {
+  "Debit Transactions": "Debit Transactions",
+  "ATM Withdrawals": "ATM Withdrawals",
+  "Total Activation Rate": "Operation Metrics",
+};
+
+export type DebitChartViewKey = (typeof debitChartViews)[number]["key"];
+export type DebitOperationMetricsViewKey = (typeof debitOperationMetricsViews)[number]["key"];
+
+const debitChartViewByKey = Object.fromEntries(debitChartViews.map((item) => [item.key, item])) as Record<
+  DebitChartViewKey,
+  (typeof debitChartViews)[number]
+>;
+
+const debitOperationMetricsViewByKey = Object.fromEntries(
+  debitOperationMetricsViews.map((item) => [item.key, item])
+) as Record<DebitOperationMetricsViewKey, (typeof debitOperationMetricsViews)[number]>;
+
+export const defaultDebitViewKey: DebitChartViewKey = "volume";
+export const defaultDebitOperationsRateViewKey: DebitOperationMetricsViewKey = "total-active-cards";
+
+export function isDebitChartViewKey(value: string | undefined): value is DebitChartViewKey {
+  return Boolean(value && value in debitChartViewByKey);
+}
+
+export function isDebitOperationsRateViewKey(
+  value: string | undefined
+): value is DebitOperationMetricsViewKey {
+  return Boolean(value && value in debitOperationMetricsViewByKey);
+}
+
+export function isDebitOperationsRateOperation(
+  operation: DebitOperationName
+): operation is "Total Activation Rate" {
+  return operation === "Total Activation Rate";
+}

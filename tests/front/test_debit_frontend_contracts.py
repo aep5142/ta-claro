@@ -29,3 +29,5 @@ def test_debit_routes_wire_to_operation_slug_model():
 
     assert "/debit-cards/transactions" in page_src
     assert "operationFromSlug" in dynamic_src
+    assert "DebitCardsDashboard" in dynamic_src
+    assert "PlaceholderPanel" not in dynamic_src
