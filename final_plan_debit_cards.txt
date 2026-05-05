@@ -117,7 +117,7 @@ Execution Phases
   - commit: phase sources and worker commit created
 
 - Phase 4: Frontend Config And Queries
-  - status: pending
+  - status: done
   - tests first:
     - add coverage for debit route/config/query mapping where practical
   - implementation:
@@ -125,8 +125,9 @@ Execution Phases
     - add debit Supabase query layer
     - wire debit route categories and supported operation-metrics tabs
   - verification:
-    - run relevant frontend checks available in repo
-  - commit: pending
+    - uv run pytest tests/front/test_debit_frontend_contracts.py
+    - result: 3 passed
+  - commit: phase frontend config/query commit created
 
 - Phase 5: Frontend UI
   - status: pending
