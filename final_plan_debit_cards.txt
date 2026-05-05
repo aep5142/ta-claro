@@ -77,7 +77,7 @@ Execution Phases
   - commit: phase scaffold commit created
 
 - Phase 1: Database
-  - status: pending
+  - status: done
   - tests first:
     - add SQL tests for debit migration assets and public views
   - implementation:
@@ -86,8 +86,9 @@ Execution Phases
     - add debit public metrics views
     - seed debit dataset metadata
   - verification:
-    - run targeted pytest for SQL coverage
-  - commit: pending
+    - uv run pytest tests/db/test_bank_credit_card_ops_sql.py
+    - result: 10 passed
+  - commit: phase database commit created
 
 - Phase 2: Backend Domain, Transforms, And Loaders
   - status: pending

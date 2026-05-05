@@ -111,3 +111,32 @@ def test_non_banking_credit_card_endpoints_sql_registers_tags_and_start_date():
     assert "bank_credit_card_cards_with_operations_non_banking" in sql
     assert "SBIF_TCRED_NBANC_COPE_AGIFI_MRC_NUM" in sql
     assert "date '2009-04-01'" in sql
+
+
+def test_debit_card_metrics_sql_registers_debit_tables_views_and_metadata():
+    sql = Path("db/014_debit_card_metrics.sql").read_text()
+
+    assert "create table if not exists public.bank_debit_card_ops_raw" in sql
+    assert "create table if not exists public.bank_debit_card_ops_curated" in sql
+    assert "create table if not exists public.bank_debit_card_counts_raw" in sql
+    assert "create table if not exists public.bank_debit_card_counts_curated" in sql
+    assert "create or replace view public.bank_debit_card_ops_metrics" in sql
+    assert "create or replace view public.bank_debit_card_operation_metrics" in sql
+    assert "bank_debit_card_ops_debit_transactions_transaction_count" in sql
+    assert "SBIF_TDEB_TATM_OPER_TXDEB_AGIFI_NUM" in sql
+    assert "bank_debit_card_ops_debit_transactions_nominal_volume" in sql
+    assert "SBIF_TDEB_TATM_OPER_TXDEB_AGIFI_MM$" in sql
+    assert "bank_debit_card_ops_atm_withdrawals_transaction_count" in sql
+    assert "SBIF_TDEB_TATM_OPER_GIR_AGIFI_NUM" in sql
+    assert "bank_debit_card_ops_atm_withdrawals_nominal_volume" in sql
+    assert "SBIF_TDEB_TATM_OPER_GIR_AGIFI_MM$" in sql
+    assert "bank_debit_card_active_cards_primary_debit" in sql
+    assert "SBIF_TDEB_VIGTIT_AGIFI_NUM" in sql
+    assert "bank_debit_card_active_cards_primary_atm_only" in sql
+    assert "SBIF_TATM_VIGTIT_AGIFI_NUM" in sql
+    assert "bank_debit_card_cards_with_operations_debit" in sql
+    assert "SBIF_TDEB_COPE_AGIFI_NUM" in sql
+    assert "bank_debit_card_cards_with_operations_atm_only" in sql
+    assert "SBIF_TATM_COPE_AGIFI_NUM" in sql
+    assert "Primary Activation Rate" not in sql
+    assert "Supplementary Activation Rate" not in sql
