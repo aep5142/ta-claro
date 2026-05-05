@@ -339,3 +339,18 @@ Frontend data access:
   - `public.uf_values`
 - The browser path is public read-only; there is no login in v1.
 - Frontend must auto-paginate Supabase reads for larger date ranges and must not treat missing rows as zero values.
+
+# Session Handoff (Debit Rollout)
+
+- Debit rollout execution log is tracked in `final_plan_debit_cards.txt`.
+- Completed phases:
+  - Phase 0 (execution scaffold)
+  - Phase 1 (database migration + SQL tests)
+  - Phase 2 (backend domain/transforms/loaders + tests)
+  - Phase 3 (sources/worker/entrypoint + tests)
+  - Phase 4 (frontend config/query wiring + contract tests)
+- Next phase:
+  - Phase 5 (frontend UI replication of credit-card dashboard behavior for debit routes)
+- Current debit frontend status:
+  - route scaffolding and config/query modules exist
+  - debit pages are still placeholder-driven pending full dashboard replication
