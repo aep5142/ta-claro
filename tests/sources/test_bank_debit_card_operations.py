@@ -55,6 +55,8 @@ def test_build_cmf_cuadros_url_for_debit_endpoint():
         ("SBIF_TDEB_TATM_OPER_TXDEB_AGIFI_BICE_NUM", "BICE"),
         ("SBIF_TDEB_TATM_OPER_GIR_AGIFI_BICE_MM$", "BICE"),
         ("SBIF_TATM_VIGTIT_AGIFI_BICE_NUM", "BICE"),
+        ("SBIF_TDEB_TATM_OPER_GIR_BBVA_NUM_MONT", "BBVA"),
+        ("SBIF_TDEB_TATM_OPER_TXDEB_BBVA_NUM_MONT", "BBVA"),
     ],
 )
 def test_derive_institution_code_from_debit_source_codes(source_codigo, expected_code):

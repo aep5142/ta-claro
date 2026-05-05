@@ -58,11 +58,17 @@ def build_cmf_cuadros_url(
 
 def derive_institution_code(source_codigo: str) -> str:
     parts = source_codigo.split("_")
-    try:
-        agifi_index = parts.index("AGIFI")
-        institution_code = parts[agifi_index + 1]
-    except (ValueError, IndexError) as exc:
-        raise ValueError(f"Cannot derive institution_code from {source_codigo}") from exc
+    institution_code = ""
+    if "AGIFI" in parts:
+        try:
+            agifi_index = parts.index("AGIFI")
+            institution_code = parts[agifi_index + 1]
+        except IndexError as exc:
+            raise ValueError(f"Cannot derive institution_code from {source_codigo}") from exc
+    else:
+        # Some CMF debit series omit AGIFI and encode bank code as *_<BANK>_NUM_MONT.
+        if len(parts) >= 3 and parts[-2] in {"NUM", "MM$", "$"}:
+            institution_code = parts[-3]
 
     if not institution_code:
         raise ValueError(f"Cannot derive institution_code from {source_codigo}")
