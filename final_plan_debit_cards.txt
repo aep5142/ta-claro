@@ -104,7 +104,7 @@ Execution Phases
   - commit: phase backend domain/transforms/loaders commit created
 
 - Phase 3: Sources And Worker
-  - status: pending
+  - status: done
   - tests first:
     - add source and worker tests for debit metadata loading, sync state, success, failure, and no-op logic
   - implementation:
@@ -112,8 +112,9 @@ Execution Phases
     - add debit worker module
     - add debit worker entrypoint
   - verification:
-    - run targeted pytest for source and worker coverage
-  - commit: pending
+    - uv run pytest tests/sources/test_bank_debit_card_operations.py tests/workers/test_bank_debit_card_operations_worker.py
+    - result: 18 passed
+  - commit: phase sources and worker commit created
 
 - Phase 4: Frontend Config And Queries
   - status: pending
