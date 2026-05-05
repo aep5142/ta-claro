@@ -140,17 +140,27 @@ Execution Phases
     - result: 3 passed
     - run npm run build in front/
     - result: build passes
-  - commit: pending
+  - commit: phase frontend UI commit created (`a9d9ff0`)
 
 - Phase 6: Final Verification And Deployment Prep
-  - status: pending
+  - status: done
   - tests first: none unless gaps appear
   - implementation:
     - update this log with final outcomes and deploy order
   - verification:
     - run targeted backend pytest
+    - uv run pytest tests/transforms/test_bank_debit_card_ops.py tests/loaders/test_bank_debit_card_ops_loader.py
+    - result: 15 passed
+    - uv run pytest tests/sources/test_bank_debit_card_operations.py tests/workers/test_bank_debit_card_operations_worker.py
+    - result: 18 passed
+    - uv run pytest tests/front/test_debit_frontend_contracts.py
+    - result: 3 passed
     - run npm run build in front/
-  - commit: pending
+    - result: build passes
+  - deploy order:
+    - debit worker service: `uv run data/bank_debit_card_ops.py`
+    - frontend service: `npm run build` then deploy front artifact
+  - commit: phase final verification/deploy prep commit created
 
 Commit Sequence
 - Phase 0: execution scaffold
