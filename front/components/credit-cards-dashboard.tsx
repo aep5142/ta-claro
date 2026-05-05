@@ -482,7 +482,7 @@ export function CreditCardsDashboard({
             )
           : null;
         const shareStart = (() => {
-          if (!supportsMarketShare || !startRow) {
+          if (!supportsMarketShare) {
             return null;
           }
           const systemStartTotal = calculateSystemTotal(
@@ -494,13 +494,16 @@ export function CreditCardsDashboard({
           if (!systemStartTotal || systemStartTotal <= 0) {
             return null;
           }
+          if (!startRow) {
+            return 0;
+          }
           const institutionStartValue = getOperationMetricValue(
             startRow as CreditCardMetricRow,
             viewKey as ChartViewKey,
             activeUfValue
           );
           return institutionStartValue === null
-            ? null
+            ? 0
             : calculateMarketShares(institutionStartValue, systemStartTotal);
         })();
 
@@ -508,7 +511,10 @@ export function CreditCardsDashboard({
           institutionCode,
           institutionName: bankMap.get(institutionCode) ?? getBankDisplayName(row.institution_name),
           currentValue,
-          metricGrowthPct: calculateVsStart(startValue, currentValue, startMonth === latestLoadedMonth),
+          metricGrowthPct:
+            !startRow || startMonth === latestLoadedMonth
+              ? null
+              : calculateVsStart(startValue, currentValue, false),
           marketShareEnd: shareEnd,
           marketShareGrowthPp:
             shareEnd === null || shareStart === null || startMonth === latestLoadedMonth

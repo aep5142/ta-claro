@@ -7,7 +7,7 @@ export const bankDisplayNameMap: Record<string, string> = {
   "Banco de Chile": "Banco de Chile",
   "Banco París": "Banco París",
   "CAT Administradora de Tarjetas": "Cencosud Scotiabank",
-  "CAR S.A.": "Tarjeta Ripley",
+  "CAR S.A.": "Banco Ripley",
   BBVA: "BBVA",
   HSBC: "HSBC",
   "CMR Falabella S.A (SAG)": "CMR Falabella",
@@ -33,6 +33,9 @@ const FALABELLA_RAW_NAMES = new Set([
 
 const FALABELLA_CANONICAL_CODE = "CMF_FALABELLA";
 const FALABELLA_DISPLAY_NAME = "CMR Falabella";
+const RIPLEY_RAW_NAMES = new Set(["CAR S.A.", "Banco Ripley"]);
+const RIPLEY_CANONICAL_CODE = "CMF_RIPLEY";
+const RIPLEY_DISPLAY_NAME = "Banco Ripley";
 
 export function getBankDisplayName(name: string): string {
   return bankDisplayNameMap[name] ?? name;
@@ -56,6 +59,12 @@ export function getCanonicalInstitution(
     return {
       institutionCode: FALABELLA_CANONICAL_CODE,
       institutionName: FALABELLA_DISPLAY_NAME,
+    };
+  }
+  if (RIPLEY_RAW_NAMES.has(institutionName)) {
+    return {
+      institutionCode: RIPLEY_CANONICAL_CODE,
+      institutionName: RIPLEY_DISPLAY_NAME,
     };
   }
 
