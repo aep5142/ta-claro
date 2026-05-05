@@ -209,7 +209,7 @@ Current shell/UI constraints:
 - Top navbar is centered, text-first, with underline active state and a visual-only `Login` CTA.
 - Left sidebar is minimalist text nav; Credit Cards shows the operation subroutes.
 - Bank selection lives under the chart in `Banks shown` with `All`, `None`, and `Reset`.
-- Bottom summary table includes `VS Start` and preserves the `Others` row behavior.
+- Bottom summary table keeps the `Others` row for share-applicable metrics and uses month-explicit comparison headers.
 - Chart controls and rendering should stay aligned with the restored `origin/main` implementation.
 - Sidebar uses a `Credit Cards` macro title and no `Live` badges.
 - Dashboard copy should describe the product, not repeat the shareable route.
@@ -240,7 +240,10 @@ Credit-card behavior:
 - Point markers shrink for long date ranges.
 - Tooltips support hover/focus inspection.
 - Tooltip share line should show `XX% of the system` using system-wide month totals, not selected-bank totals; omit that line for `Transactions`.
-- For non-banking issuers, frontend should include only `Tenpo Payments S.A. - Tarjeta Mastercard`, displayed as `Tenpo`; other non-banking issuer-brand rows are filtered out in UI.
+- For non-banking issuers, frontend includes:
+  - `Tenpo Payments S.A. - Tarjeta Mastercard`, displayed as `Tenpo`
+  - the Promotora CMR Falabella issuer-brand rows, merged with `CMR Falabella S.A (SAG)` and displayed as `CMR Falabella`
+- Other non-banking issuer-brand rows are filtered out in UI.
 
 Formatting and metric rules:
 
@@ -252,6 +255,13 @@ Formatting and metric rules:
 - Percentages use `,` as decimal separator with 1 decimal place.
 - Omit last-visible/last-loaded month copy because Start/End already show the range.
 - Share-based tables include an `Others` row.
+- In share-applicable operation views (`Volume`, `Transactions`), table columns are:
+  - `Bank`
+  - `<Metric>`
+  - `<Metric> <End> vs <Start>` (percentage growth)
+  - `Market Share <End>`
+  - `Market Share <End> vs <Start>` (absolute pp delta with direction arrow)
+- Date/input query updates in the sidebar must preserve scroll position (no jump to top while editing filters).
 - Bank selector pills show only the bank name.
 
 Frontend data access:
