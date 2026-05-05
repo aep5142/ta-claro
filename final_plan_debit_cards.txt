@@ -1,0 +1,155 @@
+Debit Cards Execution Log
+
+Status Legend
+- pending
+- in_progress
+- done
+
+Locked Product Scope
+- Section title: Debit Cards
+- Section description: This section includes debit cards and ATM-only cards.
+- Categories:
+  - Debit Transactions
+  - ATM Withdrawals
+  - Operation Metrics
+- Routes:
+  - /debit-cards/transactions
+  - /debit-cards/atm-withdrawals
+  - /debit-cards/total-activation-rate
+
+Locked Metrics
+- Debit Transactions:
+  - Volume ($)
+  - Transactions
+  - Avg. Transaction
+  - Operations per Active Card
+- ATM Withdrawals:
+  - Volume ($)
+  - Transactions
+  - Avg. Transaction
+  - Operations per Active Card
+- Operation Metrics:
+  - Total Active Cards
+  - Primary Active Cards
+  - Supplementary Active Cards
+  - Total Cards with Operations
+  - Total Activation Rate
+  - Supplementary Rate
+- Excluded from debit v1:
+  - Primary Activation Rate
+  - Supplementary Activation Rate
+
+Locked Formulas
+- Primary Active Cards = debit primary active + ATM-only primary active
+- Supplementary Active Cards = debit supplementary active + ATM-only supplementary active
+- Total Active Cards = debit total active + ATM-only total active
+- Total Cards with Operations = debit cards with operations + ATM-only cards with operations
+- Total Activation Rate = total cards with operations / total active cards
+- Supplementary Rate = supplementary active cards / primary active cards
+- Operations per Active Card = operations / total active cards
+
+Locked Endpoint Mapping
+- Debit Transactions:
+  - count: SBIF_TDEB_TATM_OPER_TXDEB_AGIFI_NUM
+  - volume: SBIF_TDEB_TATM_OPER_TXDEB_AGIFI_MM$
+- ATM Withdrawals:
+  - count: SBIF_TDEB_TATM_OPER_GIR_AGIFI_NUM
+  - volume: SBIF_TDEB_TATM_OPER_GIR_AGIFI_MM$
+- Counts:
+  - debit primary active: SBIF_TDEB_VIGTIT_AGIFI_NUM
+  - debit supplementary active: SBIF_TDEB_VIGADIC_AGIFI_NUM
+  - debit total active: SBIF_TDEB_VIG_AGIFI_NUM
+  - ATM-only primary active: SBIF_TATM_VIGTIT_AGIFI_NUM
+  - ATM-only supplementary active: SBIF_TATM_VIGADIC_AGIFI_NUM
+  - ATM-only total active: SBIF_TATM_VIG_AGIFI_NUM
+  - debit cards with operations: SBIF_TDEB_COPE_AGIFI_NUM
+  - ATM-only cards with operations: SBIF_TATM_COPE_AGIFI_NUM
+
+Execution Phases
+- Phase 0: Execution Scaffold
+  - status: done
+  - tests first: none
+  - implementation:
+    - create this execution log
+    - lock scope, metrics, formulas, routes, and phase workflow
+  - verification:
+    - confirm file exists and is staged for commit
+  - commit: phase scaffold commit created
+
+- Phase 1: Database
+  - status: pending
+  - tests first:
+    - add SQL tests for debit migration assets and public views
+  - implementation:
+    - add debit migration
+    - add debit ops/counts raw and curated tables
+    - add debit public metrics views
+    - seed debit dataset metadata
+  - verification:
+    - run targeted pytest for SQL coverage
+  - commit: pending
+
+- Phase 2: Backend Domain, Transforms, And Loaders
+  - status: pending
+  - tests first:
+    - add transform and loader tests for debit aggregation and formulas
+  - implementation:
+    - add debit models
+    - add debit transforms
+    - add debit loaders
+  - verification:
+    - run targeted pytest for backend units
+  - commit: pending
+
+- Phase 3: Sources And Worker
+  - status: pending
+  - tests first:
+    - add source and worker tests for debit metadata loading, sync state, success, failure, and no-op logic
+  - implementation:
+    - add debit source module
+    - add debit worker module
+    - add debit worker entrypoint
+  - verification:
+    - run targeted pytest for source and worker coverage
+  - commit: pending
+
+- Phase 4: Frontend Config And Queries
+  - status: pending
+  - tests first:
+    - add coverage for debit route/config/query mapping where practical
+  - implementation:
+    - add debit config
+    - add debit Supabase query layer
+    - wire debit route categories and supported operation-metrics tabs
+  - verification:
+    - run relevant frontend checks available in repo
+  - commit: pending
+
+- Phase 5: Frontend UI
+  - status: pending
+  - tests first:
+    - extend frontend coverage where practical for view handling and supported tabs
+  - implementation:
+    - replace debit placeholder with credit-style dashboard replication
+  - verification:
+    - run npm run build in front/
+  - commit: pending
+
+- Phase 6: Final Verification And Deployment Prep
+  - status: pending
+  - tests first: none unless gaps appear
+  - implementation:
+    - update this log with final outcomes and deploy order
+  - verification:
+    - run targeted backend pytest
+    - run npm run build in front/
+  - commit: pending
+
+Commit Sequence
+- Phase 0: execution scaffold
+- Phase 1: database
+- Phase 2: backend domain/transforms/loaders
+- Phase 3: sources and worker
+- Phase 4: frontend config and queries
+- Phase 5: frontend UI
+- Phase 6: final verification and deployment prep
