@@ -91,7 +91,7 @@ Execution Phases
   - commit: phase database commit created
 
 - Phase 2: Backend Domain, Transforms, And Loaders
-  - status: pending
+  - status: done
   - tests first:
     - add transform and loader tests for debit aggregation and formulas
   - implementation:
@@ -99,8 +99,9 @@ Execution Phases
     - add debit transforms
     - add debit loaders
   - verification:
-    - run targeted pytest for backend units
-  - commit: pending
+    - uv run pytest tests/transforms/test_bank_debit_card_ops.py tests/loaders/test_bank_debit_card_ops_loader.py
+    - result: 15 passed
+  - commit: phase backend domain/transforms/loaders commit created
 
 - Phase 3: Sources And Worker
   - status: pending
