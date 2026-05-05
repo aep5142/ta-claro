@@ -4,7 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BankSelector } from "@/components/bank-selector";
 import { EmptyState, ErrorState, LoadingState } from "@/components/dashboard-states";
 import { MetricLineChart } from "@/components/metric-line-chart";
-import { getBankDisplayName, shouldIncludeInstitution } from "@/lib/bank-presentation";
+import {
+  getBankDisplayName,
+  getCanonicalInstitution,
+  shouldIncludeInstitution,
+} from "@/lib/bank-presentation";
 import {
   type CreditCardMetricRow,
   fetchCreditCardMetrics,
@@ -274,20 +278,28 @@ export function CreditCardsDashboard({
       ),
     [operationsRateRows]
   );
+  const mergedOperationRows = useMemo(
+    () => aggregateOperationRows(filteredOperationRows),
+    [filteredOperationRows]
+  );
+  const mergedOperationsRateRows = useMemo(
+    () => aggregateOperationsRateRows(filteredOperationsRateRows),
+    [filteredOperationsRateRows]
+  );
 
   const loadedMonthKeys = useMemo(
     () =>
       Array.from(
         new Set(
           (isOperationsRateDashboard
-            ? filteredOperationsRateRows
-            : filteredOperationRows
+            ? mergedOperationsRateRows
+            : mergedOperationRows
           ).map((row) =>
             row.period_month.slice(0, 7)
           )
         )
       ).sort(),
-    [filteredOperationRows, filteredOperationsRateRows, isOperationsRateDashboard]
+    [isOperationsRateDashboard, mergedOperationRows, mergedOperationsRateRows]
   );
   const latestLoadedMonth = loadedMonthKeys.at(-1) ?? null;
 
@@ -296,50 +308,52 @@ export function CreditCardsDashboard({
     const bankNames = new Map<string, string>();
 
     if (isOperationsRateDashboard) {
-      filteredOperationsRateRows.forEach((row) => {
+      mergedOperationsRateRows.forEach((row) => {
         const monthKey = row.period_month.slice(0, 7);
         const metricValue = getOperationsRateMetricValue(
           row,
           viewKey as OperationsRateViewKey
         );
+        const canonical = getCanonicalInstitution(row.institution_name, row.institution_code);
 
         const bankMonths =
-          grouped.get(row.institution_code) ??
+          grouped.get(canonical.institutionCode) ??
           (Object.fromEntries(months.map((month) => [month, null])) as Record<string, number | null>);
         bankMonths[monthKey] = metricValue;
-        grouped.set(row.institution_code, bankMonths);
-        bankNames.set(row.institution_code, row.institution_name);
+        grouped.set(canonical.institutionCode, bankMonths);
+        bankNames.set(canonical.institutionCode, canonical.institutionName);
       });
     } else {
-      filteredOperationRows.forEach((row) => {
+      mergedOperationRows.forEach((row) => {
         const monthKey = row.period_month.slice(0, 7);
         const metricValue = getOperationMetricValue(
           row,
           viewKey as ChartViewKey,
           activeUfValue
         );
+        const canonical = getCanonicalInstitution(row.institution_name, row.institution_code);
 
         const bankMonths =
-          grouped.get(row.institution_code) ??
+          grouped.get(canonical.institutionCode) ??
           (Object.fromEntries(months.map((month) => [month, null])) as Record<string, number | null>);
         bankMonths[monthKey] = metricValue;
-        grouped.set(row.institution_code, bankMonths);
-        bankNames.set(row.institution_code, row.institution_name);
+        grouped.set(canonical.institutionCode, bankMonths);
+        bankNames.set(canonical.institutionCode, canonical.institutionName);
       });
     }
 
     return Array.from(grouped.entries())
       .map(([institutionCode, series]) => ({
         institutionCode,
-        institutionName: getBankDisplayName(bankNames.get(institutionCode) ?? institutionCode),
+        institutionName: bankNames.get(institutionCode) ?? institutionCode,
         series,
       }))
       .sort((left, right) => left.institutionName.localeCompare(right.institutionName));
   }, [
     activeUfValue,
-    filteredOperationRows,
-    filteredOperationsRateRows,
     isOperationsRateDashboard,
+    mergedOperationRows,
+    mergedOperationsRateRows,
     months,
     viewKey,
   ]);
@@ -390,23 +404,23 @@ export function CreditCardsDashboard({
   const latestMonthRows = useMemo(
     () =>
       (isOperationsRateDashboard
-        ? filteredOperationsRateRows
-        : filteredOperationRows
+        ? mergedOperationsRateRows
+        : mergedOperationRows
       ).filter(
         (row) => latestLoadedMonth !== null && row.period_month.slice(0, 7) === latestLoadedMonth
       ),
-    [filteredOperationRows, filteredOperationsRateRows, isOperationsRateDashboard, latestLoadedMonth]
+    [isOperationsRateDashboard, latestLoadedMonth, mergedOperationRows, mergedOperationsRateRows]
   );
 
   const firstMonthRows = useMemo(
     () =>
       (isOperationsRateDashboard
-        ? filteredOperationsRateRows
-        : filteredOperationRows
+        ? mergedOperationsRateRows
+        : mergedOperationRows
       ).filter(
         (row) => row.period_month.slice(0, 7) === startMonth
       ),
-    [filteredOperationRows, filteredOperationsRateRows, isOperationsRateDashboard, startMonth]
+    [isOperationsRateDashboard, mergedOperationRows, mergedOperationsRateRows, startMonth]
   );
 
   const summaryRows = useMemo(() => {
@@ -425,8 +439,18 @@ export function CreditCardsDashboard({
       { volume: 0, transactions: 0 }
     );
 
-    const latestRowsByCode = new Map(latestMonthRows.map((row) => [row.institution_code, row] as const));
-    const firstRowsByCode = new Map(firstMonthRows.map((row) => [row.institution_code, row] as const));
+    const latestRowsByCode = new Map(
+      latestMonthRows.map((row) => {
+        const canonical = getCanonicalInstitution(row.institution_name, row.institution_code);
+        return [canonical.institutionCode, row] as const;
+      })
+    );
+    const firstRowsByCode = new Map(
+      firstMonthRows.map((row) => {
+        const canonical = getCanonicalInstitution(row.institution_name, row.institution_code);
+        return [canonical.institutionCode, row] as const;
+      })
+    );
 
     const selectedRows: SummaryRow[] = selectedBanks
       .map((institutionCode) => {
@@ -775,6 +799,88 @@ function getOperationMetricValue(
   }
 
   return null;
+}
+
+function aggregateOperationRows(rows: CreditCardMetricRow[]): CreditCardMetricRow[] {
+  const grouped = new Map<string, CreditCardMetricRow>();
+
+  rows.forEach((row) => {
+    const canonical = getCanonicalInstitution(row.institution_name, row.institution_code);
+    const monthKey = row.period_month.slice(0, 7);
+    const key = `${canonical.institutionCode}:${monthKey}`;
+    const existing = grouped.get(key);
+
+    if (!existing) {
+      grouped.set(key, {
+        ...row,
+        institution_code: canonical.institutionCode,
+        institution_name: canonical.institutionName,
+      });
+      return;
+    }
+
+    const currentTransactions = Number(existing.transaction_count) + Number(row.transaction_count);
+    const currentNominal = Number(existing.nominal_volume_millions_clp) + Number(row.nominal_volume_millions_clp);
+    const currentRealUf = Number(existing.real_value_uf) + Number(row.real_value_uf);
+    const currentActiveCards = Number(existing.total_active_cards ?? 0) + Number(row.total_active_cards ?? 0);
+
+    grouped.set(key, {
+      ...existing,
+      transaction_count: String(currentTransactions),
+      nominal_volume_millions_clp: String(currentNominal),
+      real_value_uf: String(currentRealUf),
+      total_active_cards: String(currentActiveCards),
+      average_ticket_uf: currentTransactions > 0 ? String((currentRealUf / currentTransactions) * 1_000_000) : "0",
+      operations_per_active_card:
+        currentActiveCards > 0 ? String(currentTransactions / currentActiveCards) : null,
+    });
+  });
+
+  return Array.from(grouped.values());
+}
+
+function aggregateOperationsRateRows(rows: OperationsRateMetricRow[]): OperationsRateMetricRow[] {
+  const grouped = new Map<string, OperationsRateMetricRow>();
+
+  rows.forEach((row) => {
+    const canonical = getCanonicalInstitution(row.institution_name, row.institution_code);
+    const monthKey = row.period_month.slice(0, 7);
+    const key = `${canonical.institutionCode}:${monthKey}`;
+    const existing = grouped.get(key);
+
+    if (!existing) {
+      grouped.set(key, {
+        ...row,
+        institution_code: canonical.institutionCode,
+        institution_name: canonical.institutionName,
+      });
+      return;
+    }
+
+    const totalActiveCards = Number(existing.total_active_cards) + Number(row.total_active_cards);
+    const activeCardsPrimary = Number(existing.active_cards_primary) + Number(row.active_cards_primary);
+    const activeCardsSupplementary =
+      Number(existing.active_cards_supplementary) + Number(row.active_cards_supplementary);
+    const totalCardsWithOperations =
+      Number(existing.total_cards_with_operations) + Number(row.total_cards_with_operations);
+    const cardsWithOperationsPrimary =
+      Number(existing.cards_with_operations_primary) + Number(row.cards_with_operations_primary);
+    const cardsWithOperationsSupplementary =
+      Number(existing.cards_with_operations_supplementary) + Number(row.cards_with_operations_supplementary);
+
+    grouped.set(key, {
+      ...existing,
+      total_active_cards: String(totalActiveCards),
+      active_cards_primary: String(activeCardsPrimary),
+      active_cards_supplementary: String(activeCardsSupplementary),
+      total_cards_with_operations: String(totalCardsWithOperations),
+      cards_with_operations_primary: String(cardsWithOperationsPrimary),
+      cards_with_operations_supplementary: String(cardsWithOperationsSupplementary),
+      operations_rate: totalActiveCards > 0 ? String(totalCardsWithOperations / totalActiveCards) : null,
+    });
+  });
+
+  return Array.from(grouped.values());
 }
 
 function getOperationsRateMetricValue(
