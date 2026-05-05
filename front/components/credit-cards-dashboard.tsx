@@ -65,8 +65,9 @@ type SummaryRow = {
   institutionCode: string;
   institutionName: string;
   currentValue: number | null;
-  share: number | null;
-  vsStart: number | null;
+  metricGrowthPct: number | null;
+  marketShareEnd: number | null;
+  marketShareGrowthPp: number | null;
 };
 
 export function CreditCardsDashboard({
@@ -422,6 +423,8 @@ export function CreditCardsDashboard({
       ),
     [isOperationsRateDashboard, mergedOperationRows, mergedOperationsRateRows, startMonth]
   );
+  const supportsMarketShare =
+    !isOperationsRateDashboard && (viewKey === "volume" || viewKey === "transactions");
 
   const summaryRows = useMemo(() => {
     const bankMap = new Map(selectedSeries.map((bank) => [bank.institutionCode, bank.institutionName] as const));
@@ -470,24 +473,47 @@ export function CreditCardsDashboard({
             : getOperationMetricValue(startRow as CreditCardMetricRow, viewKey as ChartViewKey, activeUfValue)
           : null;
 
-        const share =
-          isOperationsRateDashboard ||
-          viewKey === "average-ticket" ||
-          viewKey === "operations-per-active-card"
+        const shareEnd = supportsMarketShare
+          ? calculateMarketShares(
+              viewKey === "volume"
+                ? Number((row as CreditCardMetricRow).real_value_uf) * activeUfValue
+                : Number((row as CreditCardMetricRow).transaction_count),
+              viewKey === "volume" ? totals.volume : totals.transactions
+            )
+          : null;
+        const shareStart = (() => {
+          if (!supportsMarketShare || !startRow) {
+            return null;
+          }
+          const systemStartTotal = calculateSystemTotal(
+            firstMonthRows,
+            viewKey as ChartViewKey | OperationsRateViewKey,
+            activeUfValue,
+            isOperationsRateDashboard
+          );
+          if (!systemStartTotal || systemStartTotal <= 0) {
+            return null;
+          }
+          const institutionStartValue = getOperationMetricValue(
+            startRow as CreditCardMetricRow,
+            viewKey as ChartViewKey,
+            activeUfValue
+          );
+          return institutionStartValue === null
             ? null
-            : calculateMarketShares(
-                viewKey === "volume"
-                  ? Number((row as CreditCardMetricRow).real_value_uf) * activeUfValue
-                  : Number((row as CreditCardMetricRow).transaction_count),
-                viewKey === "volume" ? totals.volume : totals.transactions
-              );
+            : calculateMarketShares(institutionStartValue, systemStartTotal);
+        })();
 
         return {
           institutionCode,
           institutionName: bankMap.get(institutionCode) ?? getBankDisplayName(row.institution_name),
           currentValue,
-          share,
-          vsStart: calculateVsStart(startValue, currentValue, startMonth === latestLoadedMonth),
+          metricGrowthPct: calculateVsStart(startValue, currentValue, startMonth === latestLoadedMonth),
+          marketShareEnd: shareEnd,
+          marketShareGrowthPp:
+            shareEnd === null || shareStart === null || startMonth === latestLoadedMonth
+              ? null
+              : shareEnd - shareStart,
         };
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row))
@@ -521,8 +547,9 @@ export function CreditCardsDashboard({
               institutionCode: "total",
               institutionName: "System",
               currentValue: systemCurrentValue,
-              share: null,
-              vsStart: calculateVsStart(systemStartValue, systemCurrentValue, startMonth === latestLoadedMonth),
+              metricGrowthPct: calculateVsStart(systemStartValue, systemCurrentValue, startMonth === latestLoadedMonth),
+              marketShareEnd: null,
+              marketShareGrowthPp: null,
             },
             ...selectedRows,
           ];
@@ -539,8 +566,9 @@ export function CreditCardsDashboard({
               institutionCode: "total",
               institutionName: "System",
               currentValue: systemCurrentValue,
-              share: null,
-              vsStart: calculateVsStart(systemStartValue, systemCurrentValue, startMonth === latestLoadedMonth),
+              metricGrowthPct: calculateVsStart(systemStartValue, systemCurrentValue, startMonth === latestLoadedMonth),
+              marketShareEnd: null,
+              marketShareGrowthPp: null,
             },
             ...selectedRows,
           ];
@@ -557,12 +585,13 @@ export function CreditCardsDashboard({
               institutionCode: "total",
               institutionName: "System",
               currentValue: systemAvg,
-              share: null,
-              vsStart: calculateVsStart(
+              metricGrowthPct: calculateVsStart(
                 calculateSystemAverage(firstMonthRows, activeUfValue),
                 systemAvg,
                 startMonth === latestLoadedMonth
               ),
+              marketShareEnd: null,
+              marketShareGrowthPp: null,
             },
             ...selectedRows,
           ];
@@ -593,20 +622,25 @@ export function CreditCardsDashboard({
         institutionCode: "total",
         institutionName: "System",
         currentValue: totalValue,
-        share: 100,
-        vsStart: calculateVsStart(
+        metricGrowthPct: calculateVsStart(
           calculateSystemTotal(firstMonthRows, viewKey as ChartViewKey | OperationsRateViewKey, activeUfValue, isOperationsRateDashboard),
           totalValue,
           startMonth === latestLoadedMonth
         ),
+        marketShareEnd: 100,
+        marketShareGrowthPp: startMonth === latestLoadedMonth ? null : 0,
       },
       ...selectedRows,
       {
         institutionCode: "others",
         institutionName: "Others",
         currentValue: othersValue,
-        share: othersShare,
-        vsStart: calculateVsStart(othersStartValue, othersValue, startMonth === latestLoadedMonth),
+        metricGrowthPct: calculateVsStart(othersStartValue, othersValue, startMonth === latestLoadedMonth),
+        marketShareEnd: othersShare,
+        marketShareGrowthPp:
+          othersStartValue === null || systemStartTotal === null || startMonth === latestLoadedMonth
+            ? null
+            : othersShare - calculateMarketShares(othersStartValue, systemStartTotal),
       },
     ];
   }, [
@@ -618,10 +652,9 @@ export function CreditCardsDashboard({
     selectedBanks,
     selectedSeries,
     startMonth,
+    supportsMarketShare,
     viewKey,
   ]);
-
-  const shouldShowShareColumn = summaryRows.some((row) => row.share !== null);
 
   function handleResetBanks() {
     setSelectedBanks(defaultSelectedBanks);
@@ -647,6 +680,8 @@ export function CreditCardsDashboard({
   if (!latestLoadedMonth && !isLoadingRows) {
     return <EmptyState title="No loaded data" description="The selected time range did not return any complete points." />;
   }
+  const tableEndMonthLabel = formatMonthLabel(latestLoadedMonth ?? endMonth);
+  const tableStartMonthLabel = formatMonthLabel(startMonth);
 
   return (
     <section className="space-y-8 pt-4 sm:space-y-10 sm:pt-6 lg:pt-8">
@@ -739,9 +774,20 @@ export function CreditCardsDashboard({
               <thead>
                 <tr className="border-y border-border text-xs font-medium uppercase tracking-[0.24em] text-muted">
                   <th className="py-3 pr-3 sm:py-4 sm:pr-6">Bank</th>
-                  <th className="py-3 pr-3 text-right sm:py-4 sm:pr-6">{activeMetric.label}</th>
-                  {shouldShowShareColumn ? <th className="py-3 pr-3 text-right sm:py-4 sm:pr-6">Share</th> : null}
-                  <th className="py-3 text-right sm:py-4">v/s {formatMonthLabel(endMonth)}</th>
+                  <th className="py-3 pr-3 text-center sm:py-4 sm:pr-6">{activeMetric.label}</th>
+                  <th className="py-3 pr-3 text-center sm:py-4 sm:pr-6">
+                    {activeMetric.label} {tableEndMonthLabel} vs {tableStartMonthLabel}
+                  </th>
+                  {supportsMarketShare ? (
+                    <th className="py-3 pr-3 text-center sm:py-4 sm:pr-6">
+                      Market Share {tableEndMonthLabel}
+                    </th>
+                  ) : null}
+                  {supportsMarketShare ? (
+                    <th className="py-3 text-center sm:py-4">
+                      Market Share {tableEndMonthLabel} vs {tableStartMonthLabel}
+                    </th>
+                  ) : null}
                 </tr>
               </thead>
               <tbody>
@@ -753,17 +799,22 @@ export function CreditCardsDashboard({
                     <td className={cn("py-4 pr-3 text-white sm:py-5 sm:pr-6", row.institutionCode === "total" ? "font-semibold" : "")}>
                       {row.institutionName}
                     </td>
-                    <td className={cn("py-4 pr-3 text-right text-white sm:py-5 sm:pr-6", row.institutionCode === "total" ? "font-semibold" : "")}>
+                    <td className={cn("py-4 pr-3 text-center text-white sm:py-5 sm:pr-6", row.institutionCode === "total" ? "font-semibold" : "")}>
                       {row.currentValue === null ? "—" : formatMetricValue(row.currentValue, activeMetric.metricType)}
                     </td>
-                    {shouldShowShareColumn ? (
-                      <td className={cn("py-4 pr-3 text-right text-white sm:py-5 sm:pr-6", row.institutionCode === "total" ? "font-semibold" : "")}>
-                        {row.share === null ? "—" : formatPercent(row.share)}
+                    <td className={cn("py-4 pr-3 text-center text-white sm:py-5 sm:pr-6", row.institutionCode === "total" ? "font-semibold" : "")}>
+                      {row.metricGrowthPct === null ? "—" : formatPercent(row.metricGrowthPct)}
+                    </td>
+                    {supportsMarketShare ? (
+                      <td className={cn("py-4 pr-3 text-center text-white sm:py-5 sm:pr-6", row.institutionCode === "total" ? "font-semibold" : "")}>
+                        {row.marketShareEnd === null ? "—" : formatPercent(row.marketShareEnd)}
                       </td>
                     ) : null}
-                    <td className={cn("py-4 text-right text-white sm:py-5", row.institutionCode === "total" ? "font-semibold" : "")}>
-                      {row.vsStart === null ? "—" : formatPercent(row.vsStart)}
-                    </td>
+                    {supportsMarketShare ? (
+                      <td className={cn("py-4 text-center text-white sm:py-5", row.institutionCode === "total" ? "font-semibold" : "")}>
+                        {formatShareGrowthWithArrow(row.marketShareGrowthPp)}
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
@@ -927,6 +978,19 @@ function formatMetricValue(value: number, metricType: MetricType): string {
     return formatDecimal(value);
   }
   return formatMoney(value);
+}
+
+function formatShareGrowthWithArrow(value: number | null): string {
+  if (value === null) {
+    return "—";
+  }
+  if (value > 0) {
+    return `${formatPercent(value)} ↑`;
+  }
+  if (value < 0) {
+    return `${formatPercent(value)} ↓`;
+  }
+  return `${formatPercent(value)} →`;
 }
 
 function MetricTabButton({

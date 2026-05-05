@@ -194,7 +194,7 @@ export function CreditCardSidebar({
     }
 
     if (persistedParams.toString() !== searchParams.toString()) {
-      router.replace(`${pathname}?${persistedParams.toString()}`);
+      router.replace(`${pathname}?${persistedParams.toString()}`, { scroll: false });
     }
   }, [boundaryState, pathname, persistedParams, router, searchParams, section]);
 
@@ -217,7 +217,7 @@ export function CreditCardSidebar({
   const updateParam = (key: string, value: string) => {
     const params = new URLSearchParams(persistedParams.toString());
     params.set(key, value);
-    router.replace(`${pathname}?${params.toString()}`);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
   const startMonth = persistedParams.get("start") ?? "";

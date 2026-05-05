@@ -10,7 +10,7 @@ export const bankDisplayNameMap: Record<string, string> = {
   "CAR S.A.": "Tarjeta Ripley",
   BBVA: "BBVA",
   HSBC: "HSBC",
-  "CMR Falabella S.A (SAG)": "CMF Falabella",
+  "CMR Falabella S.A (SAG)": "CMR Falabella",
   BCI: "BCI",
   "Banco Itaú Chile": "Banco Itaú",
   "Banco Falabella": "Banco Falabella",
@@ -32,7 +32,7 @@ const FALABELLA_RAW_NAMES = new Set([
 ]);
 
 const FALABELLA_CANONICAL_CODE = "CMF_FALABELLA";
-const FALABELLA_DISPLAY_NAME = "CMF Falabella";
+const FALABELLA_DISPLAY_NAME = "CMR Falabella";
 
 export function getBankDisplayName(name: string): string {
   return bankDisplayNameMap[name] ?? name;
