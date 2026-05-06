@@ -21,10 +21,10 @@ front/.next/
 front/out/
 
 # Local planning notes
-*plan*.md
+plans/
 
 # Personal work
-others/
+mappings/
 screenshots/
 endpoints-mapping.txt
 
