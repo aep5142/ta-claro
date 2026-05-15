@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchHomepageMetrics } from "@/lib/homepage-queries";
 import { checkingAccountOperations } from "@/lib/checking-account-config";
 import { creditCardOperations } from "@/lib/credit-card-config";
@@ -11,6 +11,7 @@ import {
   OptionalSignedOut,
   OptionalUserButton,
 } from "@/lib/clerk-compat";
+import { SiteFooter } from "@/components/site-footer";
 import { debitCardOperations } from "@/lib/debit-card-config";
 import { prepaidCardOperations, prepaidCustomerTypes } from "@/lib/prepaid-card-config";
 
@@ -58,6 +59,19 @@ const PRODUCTS = [
     accent: "var(--home-amber)",
     href: "/loans",
   },
+] as const;
+
+const HERO_MOCK_BARS = [
+  { name: "Bank 1", value: 98120, growth: "+7,2%" },
+  { name: "Bank 2", value: 90450, growth: "+5,9%" },
+  { name: "Bank 3", value: 86210, growth: "+4,8%" },
+  { name: "Bank 4", value: 80170, growth: "+4,1%" },
+  { name: "Bank 5", value: 74430, growth: "+3,7%" },
+  { name: "Bank 6", value: 68910, growth: "+3,1%" },
+  { name: "Bank 7", value: 64080, growth: "+2,8%" },
+  { name: "Bank 8", value: 59200, growth: "+2,1%" },
+  { name: "Bank 9", value: 55870, growth: "+1,7%" },
+  { name: "Bank 10", value: 52110, growth: "+1,2%" },
 ] as const;
 
 
@@ -663,85 +677,82 @@ function CallToActionSection() {
   );
 }
 
-function FooterSection() {
-  return (
-    <footer className="pb-6 pt-10">
-      <div className="mx-auto grid max-w-[1400px] grid-cols-12 gap-8 px-4 sm:px-6">
-        <div className="col-span-12 md:col-span-5">
-          <div className="flex items-baseline gap-2">
-            <span className="font-[family:var(--font-home-display)] text-3xl text-[var(--home-foreground)]">
-              Taclaro
-            </span>
-            <span className="h-1.5 w-1.5 bg-[var(--home-mint)]" />
-          </div>
-          <p className="mt-4 max-w-sm text-sm text-[var(--home-muted)]">
-            Instant benchmark for Chilean banking.
-          </p>
-        </div>
-
-        <div className="col-span-6 md:col-span-2">
-          <div className="font-[family:var(--font-home-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--home-muted)]">
-            Products
-          </div>
-          <ul className="mt-4 space-y-2 text-sm text-[var(--home-foreground)]">
-            {NAV.map((item) => (
-              <li key={item.label}>
-                <Link href={item.href} className="hover:text-[var(--home-mint)]">
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-      </div>
-      <div className="mt-8 border-t border-[var(--home-rule)]">
-        <div className="mx-auto flex max-w-[1400px] flex-col gap-2 px-4 py-5 font-[family:var(--font-home-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--home-muted)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div>© 2026 Taclaro</div>
-          <div />
-        </div>
-      </div>
-    </footer>
-  );
-}
-
 export function HomepagePrototype({
   navStyle = "dark",
   homeHref = "/",
 }: HomepagePrototypeProps) {
-  const [heroBars, setHeroBars] = useState<HeroBar[]>([]);
-  const [heroMonthLabel, setHeroMonthLabel] = useState("Latest month");
   const [livePulseCases, setLivePulseCases] = useState<LivePulseCase[]>([]);
   const [livePulseMonthLabel, setLivePulseMonthLabel] = useState("Latest month");
+  const [shouldLoadLivePulse, setShouldLoadLivePulse] = useState(false);
+  const hasLoadedLivePulseRef = useRef(false);
+  const livePulseSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const heroBars = useMemo(
+    () =>
+      HERO_MOCK_BARS.map((bar, index) => {
+        const barPalette = ["var(--home-mint)", "var(--home-amber)", "var(--home-pink)"] as const;
+        return { ...bar, color: barPalette[index % barPalette.length] };
+      }),
+    []
+  );
+
+  const heroMonthLabel = "Latest month (Mock)";
 
   useEffect(() => {
-    let cancelled = false;
+    const sectionNode = livePulseSectionRef.current;
+    if (!sectionNode) {
+      return;
+    }
 
-    async function loadHomepageData() {
+    if (typeof window === "undefined" || typeof window.IntersectionObserver === "undefined") {
+      setShouldLoadLivePulse(true);
+      return;
+    }
+
+    const observer = new window.IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldLoadLivePulse(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "400px 0px" }
+    );
+    observer.observe(sectionNode);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!shouldLoadLivePulse || hasLoadedLivePulseRef.current) {
+      return;
+    }
+
+    let cancelled = false;
+    hasLoadedLivePulseRef.current = true;
+
+    async function loadLivePulse() {
       try {
         const payload = await fetchHomepageMetrics();
-
         if (!cancelled) {
-          const barPalette = ["var(--home-mint)", "var(--home-amber)", "var(--home-pink)"] as const;
-          setHeroBars(payload.heroBars.map((bar, index) => ({ ...bar, color: barPalette[index % barPalette.length] })));
-          setHeroMonthLabel(payload.heroMonthLabel);
           setLivePulseCases(payload.livePulseCases);
           setLivePulseMonthLabel(payload.livePulseMonthLabel);
         }
       } catch {
         if (!cancelled) {
-          setHeroBars([]);
           setLivePulseCases([]);
         }
       }
     }
 
-    void loadHomepageData();
+    void loadLivePulse();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [shouldLoadLivePulse]);
 
   return (
     <div className="min-h-screen bg-[var(--home-background)] text-[var(--home-foreground)]">
@@ -750,10 +761,12 @@ export function HomepagePrototype({
         <HeroSection bars={heroBars} monthLabel={heroMonthLabel} />
         <ProductsSection />
         <WorkflowSection />
-        <LivePulseSection cases={livePulseCases} monthLabel={livePulseMonthLabel} />
+        <div ref={livePulseSectionRef}>
+          <LivePulseSection cases={livePulseCases} monthLabel={livePulseMonthLabel} />
+        </div>
         <CallToActionSection />
       </main>
-      <FooterSection />
+      <SiteFooter />
     </div>
   );
 }

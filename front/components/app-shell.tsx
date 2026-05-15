@@ -31,6 +31,7 @@ import {
   prepaidCardOperations,
   prepaidCustomerTypes,
 } from "@/lib/prepaid-card-config";
+import { SiteFooter } from "@/components/site-footer";
 import { cn } from "@/lib/utils";
 
 type AppShellProps = {
@@ -98,7 +99,7 @@ export function AppShell({ children, section, activeOperation, queryParams = {} 
   };
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="flex min-h-screen flex-col bg-surface">
       <header className="sticky top-0 z-50 bg-white text-slate-950 shadow-sm">
         <div className="flex h-16 w-full items-center justify-between gap-3 px-4 sm:px-6 lg:hidden">
           <Link href="/" className="min-w-0">
@@ -242,7 +243,7 @@ export function AppShell({ children, section, activeOperation, queryParams = {} 
         </div>
       ) : null}
 
-      <div className="flex w-full flex-col pb-8 lg:flex-row">
+      <div className="flex w-full flex-1 flex-col lg:flex-row">
         <aside className="hidden w-full shrink-0 bg-[#eef3fa] px-4 py-6 lg:sticky lg:top-16 lg:block lg:h-[calc(100vh-4rem)] lg:w-56 lg:self-start lg:overflow-y-auto lg:border-r lg:border-slate-200 lg:px-4 lg:pr-4">
           {section === "prepaid-cards" ? (
             <PrepaidCardSidebar activePath={activeOperation} queryParams={queryParams} />
@@ -250,8 +251,9 @@ export function AppShell({ children, section, activeOperation, queryParams = {} 
             <CreditCardSidebar section={section} activeOperation={activeOperation} queryParams={queryParams} />
           )}
         </aside>
-        <main className="min-w-0 flex-1 px-3 pt-6 sm:px-6 lg:px-8 lg:pt-0">{children}</main>
+        <main className="min-w-0 flex-1 px-3 pb-6 pt-6 sm:px-6 lg:px-8 lg:pt-0">{children}</main>
       </div>
+      <SiteFooter />
     </div>
   );
 }
