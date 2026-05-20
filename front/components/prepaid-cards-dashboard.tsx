@@ -456,7 +456,12 @@ export function PrepaidCardsDashboard({
           return accumulator;
         }
 
-        accumulator.volume += Number((row as PrepaidCardMetricRow).real_value_uf ?? 0) * activeUfValue;
+        const volumeValue = getOperationMetricValue(
+          row as PrepaidCardMetricRow,
+          "volume",
+          activeUfValue
+        );
+        accumulator.volume += volumeValue ?? 0;
         accumulator.transactions += Number((row as PrepaidCardMetricRow).transaction_count);
         return accumulator;
       },
@@ -497,7 +502,11 @@ export function PrepaidCardsDashboard({
         const shareEnd = supportsMarketShare
           ? calculateMarketShares(
               viewKey === "volume"
-                ? Number((row as PrepaidCardMetricRow).real_value_uf ?? 0) * activeUfValue
+                ? (getOperationMetricValue(
+                    row as PrepaidCardMetricRow,
+                    "volume",
+                    activeUfValue
+                  ) ?? 0)
                 : Number((row as PrepaidCardMetricRow).transaction_count),
               viewKey === "volume" ? totals.volume : totals.transactions
             )
@@ -1114,7 +1123,8 @@ function calculateSystemAverage(rows: Array<PrepaidCardMetricRow | PrepaidOperat
         return accumulator;
       }
 
-      accumulator.volume += Number(row.real_value_uf ?? 0) * activeUfValue;
+      const volumeValue = getOperationMetricValue(row, "volume", activeUfValue);
+      accumulator.volume += volumeValue ?? 0;
       accumulator.transactions += Number(row.transaction_count);
       return accumulator;
     },

@@ -456,7 +456,12 @@ export function DebitCardsDashboard({
           return accumulator;
         }
 
-        accumulator.volume += Number((row as DebitCardMetricRow).real_value_uf ?? 0) * activeUfValue;
+        const volumeValue = getOperationMetricValue(
+          row as DebitCardMetricRow,
+          "volume",
+          activeUfValue
+        );
+        accumulator.volume += volumeValue ?? 0;
         accumulator.transactions += Number((row as DebitCardMetricRow).transaction_count);
         return accumulator;
       },
@@ -497,7 +502,11 @@ export function DebitCardsDashboard({
         const shareEnd = supportsMarketShare
           ? calculateMarketShares(
               viewKey === "volume"
-                ? Number((row as DebitCardMetricRow).real_value_uf ?? 0) * activeUfValue
+                ? (getOperationMetricValue(
+                    row as DebitCardMetricRow,
+                    "volume",
+                    activeUfValue
+                  ) ?? 0)
                 : Number((row as DebitCardMetricRow).transaction_count),
               viewKey === "volume" ? totals.volume : totals.transactions
             )
@@ -1124,7 +1133,8 @@ function calculateSystemAverage(rows: Array<DebitCardMetricRow | DebitOperationM
         return accumulator;
       }
 
-      accumulator.volume += Number(row.real_value_uf ?? 0) * activeUfValue;
+      const volumeValue = getOperationMetricValue(row, "volume", activeUfValue);
+      accumulator.volume += volumeValue ?? 0;
       accumulator.transactions += Number(row.transaction_count);
       return accumulator;
     },
